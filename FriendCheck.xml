@@ -15,7 +15,7 @@
    save_state="y"
    date_written="2024-04-05 16:17:22"
    requires="5.07"
-   version="1.1"
+   version="1.2"
    >
    <description trim="n">
     <![CDATA[
@@ -249,6 +249,9 @@ json = require("json")
  end
  ----------------------- End Plugin Update Code -----------------------
  
+ function OnPluginInstall()
+  OnHelp()
+ end
 
 ]]>
 

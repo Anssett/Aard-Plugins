@@ -13,9 +13,9 @@
    language="Lua"
    purpose="Brief data on a friend that just logged on - now with wrapped captures. maybe."
    save_state="y"
-   date_written="2024-04-05 16:17:22"
+   date_written="2024-04-13 20:37"
    requires="5.07"
-   version="1.2"
+   version="1.3"
    >
    <description trim="n">
     <![CDATA[
@@ -26,6 +26,15 @@ FriendCheck
 "fc update check" to check for updates
 "fc update install" to install updates
 
+"fc config" shows current configuration
+"fc config tag <colorcode>" lets you set your "(Friend)" color
+  EXAMPLE: fc config tag @G
+"fc config text <colorcode>" lets you set the color to matc the friend channel text
+  EXAMPLE: fc config text @C
+  NOTE: Both "tag" and "text" should support those newfangled fancy colorcodes @x1234 or whatever they are.
+"fc config tracker <tracker alias>" lets you set the alias you use for tracker channel (usually "tracker")
+  EXAMPLE: fc config tracker tracker
+"fc config reset" resets all config to defaults (@G for tag, @C for text, no alias for tracker)
 ]]>
 </description>
 
@@ -55,6 +64,8 @@ FriendCheck
    script="update_install_alias"
    sequence="100"
   />
+  <alias match="^fc config(\s((?<command>(text|tag|tracker)) (?<value>.+)))?$" enabled="y" regexp="y" script="config_handler" sequence="100"></alias>
+  <alias match="^fc config (?<command>reset)$" enabled="y" regexp="y" script="config_handler" sequence="99"></alias>
 </aliases>
 
 <script>
@@ -116,8 +127,14 @@ function processCapture(lines)
         friendData.level, friendData.gender, friendData.race, friendData.subclass, friendData.tier = string.match(j, "Level (%d+) (%w+) ([%w%s-]+) (%w+) %[?%w*%]?%s?%(Tier (%d+%+?%d*)%)%.$")
       end
   end
-  outFriend = friendBuild()
+  friendString = friendBuild()
+  outFriend = getChannelTagColor() .. "(Friend): " ..getChannelTextColor().. friendString
   SendNoEcho("echo ".. outFriend)
+  if getTracker() ~= "" and getTracker() ~= nil then
+    trackerFriend = getTracker() .. " " .. friendString
+    SendNoEcho(trackerFriend)
+  end
+  
 end
 
 function failCapture()
@@ -136,8 +153,81 @@ function startCheck(name, line, args)
 end
 
 function friendBuild()
-  return "@G(Friend) @C"..  friendData.name .. " has entered Aardwolf. (".. friendData.level .. " T" .. friendData.tier .. " R"..friendData.morts.. " " .. friendData.race .. " " .. friendData.subclass .. ")@w"
+  channelTagColor = getChannelTagColor()
+  channelTextColor = getChannelTextColor()
+  return ""..  friendData.name .. " has entered Aardwolf. (".. friendData.level .. " T" .. friendData.tier .. " R"..friendData.morts.. " " .. friendData.race .. " " .. friendData.subclass .. ")@w"
 end
+
+function getChannelTagColor()
+  ctc = GetVariable("channelTagColor") or "@G"
+  return ctc
+end
+
+function setChannelTagColor(color)
+  SetVariable("channelTagColor",color)
+  SaveState()
+end
+
+function getChannelTextColor()
+  ctc = GetVariable("channelTextColor") or "@C"
+  return ctc
+end
+
+function setChannelTextColor(color)
+  SetVariable("channelTextColor",color)
+  SaveState()
+end
+
+function getTracker()
+  trk = GetVariable("trackerString") or false
+  return trk
+end
+
+function setTracker(value)
+  SetVariable("trackerString",value)
+  SaveState()
+end
+
+function config_handler(name, line, args)
+ arg = args.command
+ --Note("Arg: [" .. arg .."]")
+  if arg=="" then
+    Note("FriendCheck Configs:")
+    Note("Channel Text Color: " .. getChannelTextColor())
+    Note("Channel Tag Color: " .. getChannelTagColor())
+    if getTracker() then
+      Note("Tracker alias: " .. getTracker())
+    end
+  elseif arg == "text" then
+    Note("Set text color to ".. args.value)
+    setChannelTextColor(args.value)
+  elseif arg == "tag" then 
+    Note("Set tag color to ".. args.value)
+    setChannelTagColor(args.value)
+  elseif arg == "tracker" then
+    Note("Set tracker alias to ".. args.value)
+    setTracker(args.value)
+  elseif arg== "reset" then
+    Note("Resetting config to defaults.")
+    setChannelTagColor("@G")
+    setChannelTextColor("@C")
+    setTracker("")
+    SaveState()
+  end
+
+end
+
+function initVars()
+  if getChannelTagColor() == "" then setChannelTagColor("@G") end
+  if getChannelTextColor() == "" then setChannelTextColor("@C") end
+end
+
+
+function OnPluginInstall()
+  OnHelp()
+  initVars()
+ end
+
 
 function dump(o)
     if type(o) == 'table' then
@@ -249,10 +339,6 @@ json = require("json")
  end
  ----------------------- End Plugin Update Code -----------------------
  
- function OnPluginInstall()
-  OnHelp()
- end
-
 ]]>
 
 

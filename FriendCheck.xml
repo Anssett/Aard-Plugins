@@ -15,7 +15,7 @@
    save_state="y"
    date_written="2024-04-13 20:37"
    requires="5.07"
-   version="1.3"
+   version="1.4"
    >
    <description trim="n">
     <![CDATA[
@@ -101,7 +101,7 @@ function friendCap(name)
   }
   command = "finger " .. name
   startLine = "^\\-+ Player : (?:\\w+) \\(.*\\) \\-+$"
-  stopLine = "^\\-{60}$"
+  stopLine = "^\\-+$"
   tagsAreRegex=true
   noCommandEcho=true
   omitResponse=true

@@ -19,7 +19,7 @@ comments go here
    save_state="y"
    date_written="2024-06-06 20:24:22"
    requires="5.07"
-   version="1.1"
+   version="1.2"
    >
 <description trim="y">
 <![CDATA[
@@ -65,7 +65,7 @@ Updating:
 
 <aliases>
 <!--  <alias match="^seekrep (?<name>(.*))" script="startSeek" regexp="y" enabled="y" group="seekrep" send_to="12" sequence="100" ></alias> -->
-  <alias match="^seekrep\s(?<name>(\w+))\s?(?<dir>(top|bot))?\s?(?<qty>\d+)?" script="startSeek" regexp="y" enabled="y" group="seekrep" send_to="12" sequence="100" ></alias>
+  <alias match="^seekrep\s(?<name>((\d*\.)?\w+))\s?(?<dir>(top|bot))?\s?(?<qty>\d+)?" script="startSeek" regexp="y" enabled="y" group="seekrep" send_to="12" sequence="100" ></alias>
   <alias script="OnHelp" match="seekrep help" enabled="y"></alias>
   <alias
   match="seekrep update check"

@@ -19,11 +19,36 @@ comments go here
    save_state="y"
    date_written="2024-06-06 20:24:22"
    requires="5.07"
-   version="1.0"
+   version="1.1"
    >
 <description trim="y">
 <![CDATA[
-doing some seekery stuff here
+SeekRep
+-------
+Seek output reporter. Basic functionality for now, just sends to "note". Someday that will change.
+
+seekrep <target> [top|bot] [quantity] - performs seek on <target> and reports it. not pretty.
+    <target>:   required. single keyword of target (don't get cute and use 2 words. quotes are untested)
+    [top|bot]:  optional, sort order. defaults to "bot". "bot" sorts ascending, "top" sorts descending. 
+                mostly used in conjunction with quantity.
+    [quantity]: optional, restricts quantity of results.
+
+Examples:
+    seekrep lasher
+      performs "seek" on lasher, and dumps the entirety of the results to note. in an ugly format.
+              fairly useless at the moment.
+    
+    seekrep lasher top 3
+      performs "seek" on lasher, then prints his highest 3 resistances
+    
+    seekrep lasher 5
+        performs "seek" on lasher, then prints his lowest 5 resistances. assuming I got the defaults correct.
+            Better to specify the order you want your seeking results in to be safe.
+
+Updating:
+    seekrep update check: checks if there's an update to the plugin
+    seekrep update install: installs any available updates to this plugin.
+
 ]]>
 </description>
 
@@ -39,8 +64,21 @@ doing some seekery stuff here
 <!--  Aliases  -->
 
 <aliases>
-  <alias match="seekrep (?<name>(.*))" script="startSeek" regexp="y" enabled="y" group="seekrep" send_to="12" sequence="100" ></alias>
-  <alias script="OnHelp" match="sr help" enabled="y"></alias>
+<!--  <alias match="^seekrep (?<name>(.*))" script="startSeek" regexp="y" enabled="y" group="seekrep" send_to="12" sequence="100" ></alias> -->
+  <alias match="^seekrep\s(?<name>(\w+))\s?(?<dir>(top|bot))?\s?(?<qty>\d+)?" script="startSeek" regexp="y" enabled="y" group="seekrep" send_to="12" sequence="100" ></alias>
+  <alias script="OnHelp" match="seekrep help" enabled="y"></alias>
+  <alias
+  match="seekrep update check"
+  enabled="y"
+  script="update_check_alias"
+  sequence="99"
+ />
+ <alias
+  match="seekrep update install"
+  enabled="y"
+  script="update_install_alias"
+  sequence="99"
+ />
 </aliases>
 
 <script>
@@ -69,27 +107,27 @@ targetArray = {
   immunities = "",
   notes = "",
   resists={
-    Acid=0,
-    Air=0,
-    Bash=0,
-    Cold=0,
-    Disease=0,
-    Earth=0,
-    Electric=0,
-    Energy=0,
-    Fire=0,
-    Holy=0,
-    Light=0,
-    Magic=0,
-    Mental=0,
-    Negative=0,
-    Pierce=0,
-    Poison=0,
-    Shadow=0,
-    Slash=0,
-    Sonic=0,
-    Water=0
-  }
+    {resName="Air", resval=0},
+    {resName="Acid", resval=0},
+    {resName="Bash", resval=0},
+    {resName="Cold", resval=0},
+    {resName="Disease", resval=0},
+    {resName="Earth", resval=0},
+    {resName="Electric", resval=0},
+    {resName="Energy", resval=0},
+    {resName="Fire", resval=0},
+    {resName="Holy", resval=0},
+    {resName="Light", resval=0},
+    {resName="Magic", resval=0},
+    {resName="Mental", resval=0},
+    {resName="Negative", resval=0},
+    {resName="Pierce", resval=0},
+    {resName="Poison", resval=0},
+    {resName="Shadow", resval=0},
+    {resName="Slash", resval=0},
+    {resName="Sonic", resval=0},
+    {resName="Water", resval=0}
+    }
 }
 end
 
@@ -98,17 +136,19 @@ function trim(s)
 end
 
 function resSplit(instring)
-  splitResults = {
-  }
   split1 = trim(string.sub(instring,0,31))
   split2 = trim(string.sub(instring,31,58))
   if(split1 ~= "") then
-    tbl1 = resSubSplit(split1)
-    targetArray.resists[tbl1[1]] = tbl1[2]
+    local tbl = resSubSplit(split1)
+    for i,j in ipairs(targetArray.resists) do
+        if j.resName == tbl[1] then j.resval = tonumber(tbl[2]) end
+    end
   end
   if (split2 ~= "") then
-    tbl2=resSubSplit(split2)
-    targetArray.resists[tbl2[1]] = tbl2[2]
+    local tbl=resSubSplit(split2)
+    for i,j in ipairs(targetArray.resists) do
+        if j.resName == tbl[1] then j.resval = tonumber(tbl[2]) end
+    end
   end
 end
 
@@ -152,18 +192,20 @@ end
 
 function startSeek(name,line, args)
   target = args.name
+  dir = args.dir or "nil"
+  qty = tonumber(args.qty) or -1
   initTarget()
 
-  command = "seek " .. target
+  local command = "seek " .. target
   --startTag = "^Your research into .* reveals the following \\.\\.\\.\\. $"
-  startTag = "^\\-+$"
+  local startTag = "^\\-+$"
   --endTag = "^You are charged \\d+ gold clan skill fee\\.$"
-  endTag = "^\\-+$"
-  tagsAreRegex=true
-  noCommandEcho=false
-  omitResponse=true
-  noFollowPrompt=false
-  sendViaExecute=true
+  local endTag = "^\\-+$"
+  local tagsAreRegex=true
+  local noCommandEcho=false
+  local omitResponse=true
+  local noFollowPrompt=false
+  local sendViaExecute=true
 
   Capture.tagged_output(command,startTag,endTag,tagsAreRegex,noCommandEcho,omitResponse,noFollowPrompt,processCapture,sendViaExecute,seekFail)
 end
@@ -202,12 +244,137 @@ function processCapture(lines)
       end
   end
   
+
   Note("Seek data on target: "..targetArray.shortn)
-  sorted = table.sort(targetArray.resists,function (ab) return a[2]<b[2] end)
-  tprint(sorted)
+  --table.sort(targetArray.resists,tblLT)
+  if qty>0 then
+    tprint(getTableX(qty,dir))
+  else
+    tprint(targetArray)
+  end
+  
 end
 
+function tblLT(a,b)
+  return a.resval<b.resval
+end
 
+function tblGT(a,b)
+  return a.resval>b.resval
+end
+
+function getTableX(amount,direction)
+  local outTable = {}
+  if(direction == "top") then --sort largest -> smallest
+    table.sort(targetArray.resists,tblGT)  
+  else -- sort smallest -> largest. default for now, probably most common.
+    table.sort(targetArray.resists,tblLT)
+  end
+  if amount<1 then amount=#targetArray.resists end
+    for x=1,amount do
+      if targetArray.resists[x].resval ~= 0 then
+        table.insert(outTable,targetArray.resists[x])
+      end
+    end
+  return outTable
+end
+
+ ----------------------- Plugin Update Code -----------------------
+ -- Code taken from Durel's dinv plugin, originally via Crowley
+ require("wait")
+require("async")
+json = require("json")
+
+ plugin_url = "https://raw.githubusercontent.com/Anssett/Aard-Plugins/main/SeekRep.xml"
+ SetVariable("DownloadURL", plugin_url)
+ plugin_protocol = "HTTPS"
+ plugin_prefix = "[SeekRep]"
+ 
+ function update_check_alias()
+     update_plugin("check")
+     ColourNote("white", "", plugin_prefix .. " Checking for updated version...")
+ end
+ 
+ function update_install_alias()
+     update_plugin("install")
+     ColourNote("white", "", plugin_prefix .. " Checking for and installing updated version...")
+ end
+ 
+ function reload_plugin()
+     local scriptPrefix = GetAlphaOption("script_prefix")
+     local retval
+ 
+     -- If the user has not already specified the script prefix for this version of mush, pick a
+     -- reasonable default value
+     if (scriptPrefix == "") then
+         scriptPrefix = "\\\\\\"
+         SetAlphaOption("script_prefix", scriptPrefix)
+     end
+ 
+     -- Tell mush to reload the plugin in one second.  We can't do it directly here because a
+     -- plugin can't unload itself.  Even if it could, how could it tell mush to load it again
+     -- if it weren't installed? 
+     retval = Execute(scriptPrefix.."DoAfterSpecial(0.1, \"ReloadPlugin('"..GetPluginID().."')\", sendto.script)")
+ end
+ 
+ function update_plugin(mode)
+     update_mode = mode
+ 
+     wait.make(get_plugin_file)
+ end
+ 
+ function get_plugin_file()
+     local urlThread = async.request(plugin_url, plugin_protocol)
+ 
+     if not urlThread then
+         note_error("Couldn't create async url request.")
+         return
+     end
+ 
+     local timeout = 10
+     local totTime = 0
+     while (urlThread:alive() and totTime < timeout) do
+         wait.time(0.1)
+         totTime = totTime + 0.1
+     end
+ 
+     local remoteRet, pluginData, status, headers, fullStatus = urlThread:join()
+ 
+     if not status then
+         ColourNote("red", "", plugin_prefix .. " Couldn't download plugin file. No status code.")
+         
+         return
+     end
+ 
+     if (status ~= 200) then
+         ColourNote("red", "", plugin_prefix .. " Plugin file request status code: " .. status .. ": " .. fullStatus)
+         return
+     end
+     
+     local currentVersion = GetPluginInfo(GetPluginID(), 19) or 0
+     local currentVerStr  = string.format("%1.3f", currentVersion)
+     local remoteVerStr   = string.match(pluginData, '%s%s+version="([0-9%.]+)"')
+     local remoteVersion  = tonumber(remoteVerStr or "") or 0
+ 
+     if remoteVersion == currentVersion then
+         ColourNote("white", "", plugin_prefix .. " You are running the most recent version (v" .. currentVerStr .. ")")
+     elseif (remoteVersion < currentVersion) then
+         ColourNote("white", "", plugin_prefix .. " You have a newer version than is publicly available. (v" .. currentVerStr .. ")")
+     elseif (update_mode == "check") then
+         ColourNote("white", "", plugin_prefix .. " You are running v" .. currentVerStr .. ", but there's a newer version v" .. remoteVerStr)
+     elseif (update_mode == "install") then
+         ColourNote("white", "", plugin_prefix .. " Updating plugin from version " .. currentVerStr .. " to version " .. remoteVerStr) 
+ 
+         local pluginFile = GetPluginInfo(GetPluginID(), 6)
+         local file = io.open(pluginFile, "wb")
+         file:write(pluginData)
+         file:close()
+         reload_plugin()
+     else
+         ColourNote("red", "", plugin_prefix .. " Invalid update mode: " .. update_mode)
+     end
+ end
+ ----------------------- End Plugin Update Code -----------------------
 
 ]]>
 </script> 

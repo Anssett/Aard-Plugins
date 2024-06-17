@@ -19,74 +19,56 @@ comments go here
    save_state="y"
    date_written="2024-06-06 20:24:22"
    requires="5.07"
-   version="1.3"
+   version="1.4"
    >
 <description trim="y">
 <![CDATA[
 SeekRep
 -------
-Seek output reporter. Basic functionality for now, just sends to "note". Someday that will change.
+Seek clanskill output reporter.
 
-seekrep <target> [top|bot] [quantity] - performs seek on <target> and reports it. not pretty.
-    <target>:   required. single keyword of target (don't get cute and use 2 words. quotes are untested)
-    [top|bot]:  optional, sort order. defaults to "bot". "bot" sorts ascending, "top" sorts descending. 
-                mostly used in conjunction with quantity.
-    [quantity]: optional, restricts quantity of results.
+ON FIRST SETUP, START WITH:
+    seekrep config help
+
+seekrep <target> [top|bot] [quantity]
+    <target>    Required. Single keyword of target. Ordinal targets are ok (1.lasher, 2.lasher, etc.)
+                multiple words or quotes are not.
+    [top|bot]   Optional. Sort order. defaults to "bot". "bot" sorts ascending, "top" sorts descending. 
+    [quantity]  Optional. Restricts quantity of results.
 
 Examples:
-    seekrep lasher
-      performs "seek" on lasher, and dumps the entirety of the results to note. in an ugly format.
-              fairly useless at the moment.
-    
     seekrep lasher top 3
-      performs "seek" on lasher, then prints his highest 3 resistances
+      Performs "seek" on lasher, then prints his highest 3 resistances.
     
     seekrep lasher 5
-        performs "seek" on lasher, then prints his lowest 5 resistances. assuming I got the defaults correct.
-            Better to specify the order you want your seeking results in to be safe.
+      Performs "seek" on lasher, then prints his lowest 5 resistances.
 
 Updating:
-    seekrep update check: checks if there's an update to the plugin
-    seekrep update install: installs any available updates to this plugin.
+    seekrep update check:   Checks if there's an update to the plugin.
+    seekrep update install: Installs any available updates to this plugin.
 
 ]]>
 </description>
 
 </plugin>
 
-
-<!--  Triggers  -->
-
-<triggers>
-  <trigger enabled="y" group="seekrep" keep_evaluating="y" script="seekFail" match="^Your fail to seek your target correctly\.$" regexp="y" send_to="12" sequence="100"></trigger>
-</triggers>
-
-<!--  Aliases  -->
+<triggers></triggers>
 
 <aliases>
-<!--  <alias match="^seekrep (?<name>(.*))" script="startSeek" regexp="y" enabled="y" group="seekrep" send_to="12" sequence="100" ></alias> -->
   <alias match="^seekrep\s(?<name>((\d*\.)?\w+))\s?(?<dir>(top|bot))?\s?(?<qty>\d+)?" script="startSeek" regexp="y" enabled="y" group="seekrep" send_to="12" sequence="100" ></alias>
   <alias script="OnHelp" match="seekrep help" enabled="y"></alias>
-  <alias
-  match="seekrep update check"
-  enabled="y"
-  script="update_check_alias"
-  sequence="99"
- />
- <alias
-  match="seekrep update install"
-  enabled="y"
-  script="update_install_alias"
-  sequence="99"
- />
+  <alias match="seekrep update check" enabled="y" script="update_check_alias" sequence="99"/>
+  <alias match="seekrep update install" enabled="y" script="update_install_alias" sequence="99"/>
+
+  <alias match="^seekrep config(\s((?<command>(echo|channel|rvcolor|rncolor|sepcolor)) (?<value>.+)))?$" enabled="y" regexp="y" script="config_handler" sequence="99"></alias>
+  <alias match="^seekrep config (?<command>reset|help)$" enabled="y" regexp="y" script="config_handler" sequence="99"></alias>
 </aliases>
 
 <script>
 <![CDATA[
-
-require "wrapped_captures"
-require "aardwolf_colors"
-require "tprint"
+require 'wrapped_captures'
+require 'aardwolf_colors'
+require 'tprint'
 
 function seekFail()
   Note("something broke. Or seek failed and you need to try again.")
@@ -211,16 +193,22 @@ function processCapture(lines)
         resSplit(j)
       end
   end
-  
 
-  Note("Seek data on target: "..targetArray.shortn)
-  --table.sort(targetArray.resists,tblLT)
   if qty>0 then
-    tprint(getTableX(qty,dir))
+    local outText = tableString(getTableX(qty,dir))
+    if getEcho() then
+      colorsToAnsiNote(outText)
+    end
+    SendNoEcho(getChannel() .. " "..outText)
   else
     tprint(targetArray)
+    --nobody's going to use this, right?
   end
   
+end
+
+function colorsToAnsiNote(data)
+  return AnsiNote(ColoursToANSI(data))
 end
 
 function tblLT(a,b)
@@ -228,7 +216,7 @@ function tblLT(a,b)
 end
 
 function tblGT(a,b)
-  return a.resval>b.resval
+  return b.resval<a.resval
 end
 
 function getTableX(amount,direction)
@@ -246,6 +234,157 @@ function getTableX(amount,direction)
     end
   return outTable
 end
+
+function tableString(intab)
+  local buildString = ""
+  local sepColor = getSepColor()
+  local resNameColor = getResNameColor()
+  local resValColor = getResValColor()
+
+  for x=1,#intab do
+    buildString = buildString .. resNameColor.. intab[x].resName..": "..resValColor ..intab[x].resval .. "%" .. sepColor .. " | @w"
+  end
+
+  buildString = buildString .. resNameColor .. "Target: " .. targetArray.shortn
+
+  return buildString
+end
+
+function config_handler(name, line, args)
+    arg = args.command
+   if arg=="" then
+     Note("SeekRep Configs:")
+     Note("Echo:                " .. tostring(getEcho()))
+     Note("Channel:             " .. getChannel())
+     Note("Resist Value Color:  ".. getResValColor())
+     Note("Resist Name Color:   " .. getResNameColor())
+     Note("Separator Color:     "..getSepColor())
+   elseif arg == "echo" then
+      Note("Toggled Echo to "..args.value)
+      setEcho(args.value)
+   elseif arg == "channel" then
+      Note("Set reporting channel to " .. args.value)
+      setChannel(args.value)
+   elseif arg == "rvcolor" then
+      Note("Set resist value color to ".. args.value)
+      setResValColor(args.value)
+   elseif arg == "rncolor" then
+      Note("Set resist name color to ".. args.value)
+      setResNameColor(args.value)
+   elseif arg == "sepcolor" then
+      Note("Set separator color to " .. args.value)
+      setSepColor(args.value)
+   elseif arg == "help" then
+      configHelp()
+   elseif arg== "reset" then
+     Note("Resetting config to defaults.")
+     --reset things
+     SaveState()
+   end
+ end
+
+ function setEcho(value)
+  SetVariable("outEcho",value)
+  SaveState()
+ end
+ 
+ function getEcho()
+  local echo = GetVariable("outEcho")
+  return echo
+ end
+
+ function setChannel(value)
+  SetVariable("outChannel",value)
+  SaveState()
+ end
+
+ function getChannel()
+  local chan = GetVariable("outChannel")
+  return chan
+ end
+ 
+ function setResValColor(value)
+  SetVariable("resValColor",value)
+  SaveState()
+ end
+
+ function getResValColor()
+  local rvColor = GetVariable("resValColor")
+  return rvColor
+ end
+
+ function setResNameColor(value)
+  SetVariable("resNameColor",value)
+  SaveState()
+ end
+ 
+ function getResNameColor()
+  local rnColor = GetVariable("resNameColor")
+  return rnColor
+ end
+ 
+ function setSepColor(value)
+  SetVariable("sepColor",value)
+  SaveState()
+ end
+ 
+ function getSepColor()
+  local sepColor = GetVariable("sepColor")
+  return sepColor
+ end
+
+function configHelp()
+  Note("Config options:")
+  Note("seekrep config [echo|channel|rvcolor|rncolor|sepcolor|reset|help] <value>")
+  Note("  echo:     [true|false] - enables or disables local echo of seek results")
+  Note("  channel:  [string] - set the game channel that seek reports to")
+  Note("  rvcolor:  [string] - set the color code for resist values. Use @ prefixed colors. Supports xterm or mud colors.")
+  Note("  rncolor:  [string] - set the color code for resist names. Use @ prefixed colors. Supports xterm or mud colors.")
+  Note("  sepcolor: [string] - set the color code for the separator characters. Supports xterm or mud colors.")
+  Note("  reset:    resets config values to defaults.")
+  Note("  help:     This data.")
+
+end
+
+function isEmpty(testme)
+  return testme == nil or testme==""
+end
+
+function resetVars()
+  setResValColor("@x184")
+  setResNameColor("@W")
+  setSepColor("@M")
+  setChannel("gtell")
+  setEcho("true")
+end
+
+function initVars()
+  if isEmpty(getResValColor()) then setResValColor("@x184") end
+  if isEmpty(getResNameColor()) then setResNameColor("@W") end
+  if isEmpty(getSepColor()) then setSepColor("@M") end
+  if isEmpty(getChannel()) then setChannel("gtell") end
+  if isEmpty(getEcho()) then setEcho("true") end
+end
+
+function OnPluginInstall()
+  OnHelp()
+  initVars()
+ end
+
+   --[[
+  again disabling tracker code for the moment...
+ function getTracker()
+  local trk = GetVariable("trackerString") or false
+  return trk
+end
+
+function setTracker(value)
+  SetVariable("trackerString",value)
+  SaveState()
+end
+]]
+
+
 
  ----------------------- Plugin Update Code -----------------------
  -- Code taken from Durel's dinv plugin, originally via Crowley

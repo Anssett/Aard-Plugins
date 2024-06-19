@@ -1,5 +1,4 @@
-FriendCheck
-------------
+#FriendCheck
 "fc (on|off)" to enable/disable
 
 "fc update check" to check for updates
@@ -16,8 +15,7 @@ FriendCheck
 "fc config reset" resets all config to defaults (@G for tag, @C for text, no alias for tracker)
 
 
-SeekRep
--------
+#SeekRep
 A plugin to collect and report "Seek" clanskill output
 
 Basic usage: 

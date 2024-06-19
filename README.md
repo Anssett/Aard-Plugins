@@ -18,7 +18,7 @@
 
 A plugin to collect and report "Seek" clanskill output
 
-seekrep &lt;target&gt; [top|bot] [quantity]
+`seekrep &lt;target&gt; [top|bot] [quantity]
 - &lt;target&gt;    Required. Single keyword of target. Ordinal targets are ok (1.lasher, 2.lasher, etc.). Multiple words or quotes are not.
 - [top|bot]   Optional. Sort order. defaults to "bot". "bot" sorts ascending, "top" sorts descending. 
 - [quantity]  Optional. Restricts quantity of results.

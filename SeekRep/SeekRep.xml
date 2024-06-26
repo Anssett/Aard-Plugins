@@ -19,7 +19,7 @@ comments go here
    save_state="y"
    date_written="2024-06-06 20:24:22"
    requires="5.07"
-   version="1.5"
+   version="2.0"
    >
 <description trim="y">
 <![CDATA[
@@ -33,7 +33,8 @@ ON FIRST SETUP, START WITH:
 seekrep <target> [top|bot] [quantity]
     <target>    Required. Single keyword of target. Ordinal targets are ok (1.lasher, 2.lasher, etc.)
                 multiple words or quotes are not.
-    [top|bot]   Optional. Sort order. defaults to "bot". "bot" sorts ascending, "top" sorts descending. 
+    [top|bot|immcheck|all]   Optional. If nothing given, defaults to "bot". "bot" sorts ascending, "top" sorts descending. 
+                "immcheck" returns non-immune damtypes. "all" is the old "block of blue text" that is mostly used for debugging right now.
     [quantity]  Optional. Restricts quantity of results.
 
 Examples:
@@ -55,7 +56,7 @@ Updating:
 <triggers></triggers>
 
 <aliases>
-  <alias match="^seekrep\s(?<name>((\d*\.)?\w+))\s?(?<dir>(top|bot))?\s?(?<qty>\d+)?" script="startSeek" regexp="y" enabled="y" group="seekrep" send_to="12" sequence="100" ></alias>
+  <alias match="^seekrep\s(?<name>((\d*\.)?\w+))\s?(?<dir>(top|bot|all|immcheck))?\s?(?<qty>\d+)?" script="startSeek" regexp="y" enabled="y" group="seekrep" send_to="12" sequence="100" ></alias>
   <alias script="OnHelp" match="seekrep help" enabled="y"></alias>
   <alias match="seekrep update check" enabled="y" script="update_check_alias" sequence="99"/>
   <alias match="seekrep update install" enabled="y" script="update_install_alias" sequence="99"/>
@@ -81,7 +82,29 @@ targetArray = {
   identical = 0,
   timeskilled = 0,
   align = "",
-  immunities = "",
+--  immunities = "",
+  immunities={
+    {immuName="Air", immuVal=false, immuType="magic" },
+    {immuName="Acid", immuVal=false, immuType="magic" },
+    {immuName="Bash", immuVal=false, immuType="physical" },
+    {immuName="Cold", immuVal=false, immuType="magic" },
+    {immuName="Disease", immuVal=false, immuType="magic" },
+    {immuName="Earth", immuVal=false, immuType="magic" },
+    {immuName="Electric", immuVal=false, immuType="magic" },
+    {immuName="Energy", immuVal=false, immuType="magic" },
+    {immuName="Fire", immuVal=false, immuType="magic" },
+    {immuName="Holy", immuVal=false, immuType="magic" },
+    {immuName="Light", immuVal=false, immuType="magic" },
+    {immuName="Magic", immuVal=false, immuType="magic" },
+    {immuName="Mental", immuVal=false, immuType="magic" },
+    {immuName="Negative", immuVal=false, immuType="magic" },
+    {immuName="Pierce", immuVal=false, immuType="physical" },
+    {immuName="Poison", immuVal=false, immuType="magic" },
+    {immuName="Shadow", immuVal=false, immuType="magic" },
+    {immuName="Slash", immuVal=false, immuType="physical" },
+    {immuName="Sonic", immuVal=false, immuType="magic" },
+    {immuName="Water", immuVal=false, immuType="magic" }
+  },
   notes = "",
   resists={
     {resName="Air", resval=0},
@@ -138,6 +161,38 @@ function resSubSplit(instring)
   return splitTable
 end
 
+function parseImm(input)
+  for _,j in pairs(input) do
+    for x,y in ipairs(targetArray.immunities) do
+      if string.lower(targetArray.immunities[x].immuName) == trim(string.lower(j)) then
+        targetArray.immunities[x].immuVal = true
+      elseif trim(string.lower(j)) == "allmagic" then
+        if targetArray.immunities[x].immuType == "magic" then targetArray.immunities[x].immuVal = true end
+      elseif trim(string.lower(j)) == "allphysical" then
+        if targetArray.immunities[x].immuType == "physical" then targetArray.immunities[x].immuVal = true end
+      end
+    end
+  end
+end
+
+function showVuln()
+  local sepColor = getSepColor()
+  local resNameColor = getResNameColor()
+  local resValColor = getResValColor()
+
+  local outString = resNameColor .. targetArray.shortn .. " vulnerable to: "
+  local vulnArray = {}
+  for i=1,#targetArray.immunities do
+    if not targetArray.immunities[i].immuVal then
+      table.insert(vulnArray,targetArray.immunities[i].immuName)
+    end
+  end
+  catString = table.concat(vulnArray,", " )
+  catSring = string.gsub(catString,", ",sepColor..", "..resValColor)
+  outString = outString .. resValColor .. catString
+  return outString
+end
+
 function OnHelp ()
   world.Note (world.GetPluginInfo (world.GetPluginID (), 3))
 end
@@ -162,19 +217,19 @@ end
 
 function processCapture(lines)
   new_table = {}
+  local outText = ""
 
   --remove color data etc
   for k, v in ipairs(lines) do
       stripped = strip_colours_from_styles(v)
       if (stripped ~= "" and 
           stripped ~="------------------------- [ Resistances ] ----------------------") then
-          table.insert(new_table, trim(stripped))
+          table.insert(new_table, stripped)
       end
   end
 
   --process de-colored data
   for i,j in ipairs(new_table) do
-      --Note("i: " .. i .. " j: " .. j)
       if string.find(j,"Mob Short Name") ~=nil then
         targetArray.shortn = trim(string.match(j, ":(.*)"))
       elseif string.find(j,"Mob Base Level") ~= nil then
@@ -185,26 +240,39 @@ function processCapture(lines)
         targetArray.timeskilled = trim(string.match(j, ":(.*)"))
       elseif string.find(j,"Alignment") ~= nil then
         targetArray.align = trim(string.match(j, ":(.*)"))
-      elseif string.find(j,"Immunities") ~= nil then
-        targetArray.immunities = trim(string.match(j, ":(.*)"))
       elseif string.find(j,"Note") ~= nil then
         targetArray.notes = trim(string.match(j, ":(.*)"))
       elseif string.find(j,"%a+%s+:%s+[-%.%d]+") ~= nil then
         resSplit(j)
+      elseif string.find(j,"Immunities") ~= nil then
+        parseImm(utils.split(trim(string.match(j, ":(.*)")),","))
+      elseif string.find(j,"(%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s)(.*)") ~= nil then
+        parseImm(utils.split(trim(j),","))
       end
   end
 
-  if qty>0 then
-    local outText = tableString(getTableX(qty,dir))
+  if dir == "all" then
+    tprint(targetArray)
+  elseif dir=="immcheck" then
+    outText = showVuln()
+  else
+    if qty>0 then
+      outText = tableString(getTableX(qty,dir))
+    else
+      --tprint(targetArray)
+      --nobody's going to use this, right?
+      --wrong.
+      outText = tableString(getTableX(#targetArray.resists,"bot"))
+    end
+  end
+
+  if outText ~= "" then
     if getEcho() then
       colorsToAnsiNote(outText)
     end
     SendNoEcho(getChannel() .. " "..outText)
-  else
-    tprint(targetArray)
-    --nobody's going to use this, right?
   end
-  
+
 end
 
 function colorsToAnsiNote(data)
@@ -222,15 +290,14 @@ end
 function getTableX(amount,direction)
   local outTable = {}
   if(direction == "top") then --sort largest -> smallest
-    table.sort(targetArray.resists,tblGT)  
+    table.sort(targetArray.resists,tblGT)
   else -- sort smallest -> largest. default for now, probably most common.
     table.sort(targetArray.resists,tblLT)
   end
   if amount<1 then amount=#targetArray.resists end
+  if amount>#targetArray.resists then amount=#targetArray.resists end --lol ty scars
     for x=1,amount do
-      if targetArray.resists[x].resval ~= 0 then
         table.insert(outTable,targetArray.resists[x])
-      end
     end
   return outTable
 end
@@ -244,7 +311,6 @@ function tableString(intab)
   for x=1,#intab do
     buildString = buildString .. resNameColor.. intab[x].resName..": "..resValColor ..intab[x].resval .. "%" .. sepColor .. " | @w"
   end
-
   buildString = buildString .. resNameColor .. "Target: " .. targetArray.shortn
 
   return buildString
@@ -370,21 +436,6 @@ function OnPluginInstall()
   OnHelp()
   initVars()
  end
-
-   --[[
-  again disabling tracker code for the moment...
- function getTracker()
-  local trk = GetVariable("trackerString") or false
-  return trk
-end
-
-function setTracker(value)
-  SetVariable("trackerString",value)
-  SaveState()
-end
-]]
-
-
 
  ----------------------- Plugin Update Code -----------------------
  -- Code taken from Durel's dinv plugin, originally via Crowley

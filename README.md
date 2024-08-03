@@ -18,7 +18,7 @@
 
 A plugin to collect and report "Seek" clanskill output
 
-`seekrep &lt;target&gt; [top|bot] [quantity]`
+`seekrep <target> [top|bot] [quantity]`
 - &lt;target&gt;    Required. Single keyword of target. Ordinal targets are ok (1.lasher, 2.lasher, etc.). Multiple words or quotes are not.
 - [top|bot]   Optional. Sort order. defaults to "bot". "bot" sorts ascending, "top" sorts descending. 
 - [quantity]  Optional. Restricts quantity of results.
@@ -31,14 +31,13 @@ A plugin to collect and report "Seek" clanskill output
 
 A plugin to allow "curated" randoms. Starts out with an empty list that you fill, and then can have more specific randoms.
 
-`rd &lt;channel&gt; [target]`
+`rd <channel> [target]`
 - sends a random from randick list to channel, aimed at target.
 - channel value is required. target value is optional.
 
 `randick add`
-- Opens a text box to add socials to. You can copy/paste directly from social &lt;word&gt; output from the mud, or a list separated by commas, or each social on its own line.
-
-`randick rem &lt;social&gt;`
+- Opens a text box to add socials. You can copy/paste directly from social &lt;word&gt; output from the mud, or a list separated by commas, or each social on its own line.
+`randick rem <social>`
 - Removes a single specified social from the list. Has to match exactly.
-`randick list
+`randick list`
 - Shows the current list of socials. It's ugly right now. Maybe some day it will be less ugly.

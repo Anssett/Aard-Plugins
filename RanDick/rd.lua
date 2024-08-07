@@ -234,16 +234,16 @@ function OnPluginInstall(msg, id, name, text)
 	end
 end
 
- ----------------------- Plugin Update Code -----------------------
+  ----------------------- Plugin Update Code -----------------------
  -- Code taken from Durel's dinv plugin, originally via Crowley
  require("wait")
 require("async")
 json = require("json")
 
  plugin_url = "https://raw.githubusercontent.com/Anssett/Aard-Plugins/main/RanDick/RD.xml"
- plugin_lua_url = "https://raw.githubusercontent.com/Anssett/Aard-Plugins/main/RanDick/RD.lua"
+ plugin_lua_url = "https://raw.githubusercontent.com/Anssett/Aard-Plugins/main/RanDick/rd.lua"
+
  SetVariable("DownloadURL", plugin_url)
- SetVariable("DownloadLua",plugin_lua_url)
  plugin_protocol = "HTTPS"
  plugin_prefix = "[Randick]"
  
@@ -277,18 +277,23 @@ json = require("json")
  function update_plugin(mode)
      update_mode = mode
  
-     wait.make(get_plugin_file(plugin_url))
-     wait.make(get_plugin_file(plugin_lua_url))
+     wait.make(get_plugin_file)
  end
  
- function get_plugin_file(url)
-     local urlThread = async.request(url, plugin_protocol)
+ function get_plugin_file()
+     local urlThread = async.request(plugin_url, plugin_protocol)
+     local urlLuaThread = async.request(plugin_lua_url, plugin_protocol)
  
-     if not urlThread then
+     if not urlThread or not urlLuaThread then
          note_error("Couldn't create async url request.")
          return
      end
- 
+--[[ can maybe remove this...
+     if not urlLuaThread then
+        note_error("Couldn't create async url request - lua file")
+        return
+     end
+    ]]--  
      local timeout = 10
      local totTime = 0
      while (urlThread:alive() and totTime < timeout) do
@@ -297,14 +302,15 @@ json = require("json")
      end
  
      local remoteRet, pluginData, status, headers, fullStatus = urlThread:join()
+     local remoteRetLua, pluginDataLua, statusLua, headersLua, fullStatusLua = urlLuaThread:join()
  
-     if not status then
+     if not status or not statusLua then
          ColourNote("red", "", plugin_prefix .. " Couldn't download plugin file. No status code.")
          
          return
      end
  
-     if (status ~= 200) then
+     if (status ~= 200) or (statusLua ~= 200) then
          ColourNote("red", "", plugin_prefix .. " Plugin file request status code: " .. status .. ": " .. fullStatus)
          return
      end
@@ -327,6 +333,12 @@ json = require("json")
          local file = io.open(pluginFile, "wb")
          file:write(pluginData)
          file:close()
+
+         local pluginLuaFile = string.sub(GetPluginInfo(GetPluginID(),6),0,-4).."lua"
+         local luafile = io.open(pluginLuaFile,"wb")
+         luafile:write(pluginDataLua)
+         luafile:close()
+         
          reload_plugin()
      else
          ColourNote("red", "", plugin_prefix .. " Invalid update mode: " .. update_mode)

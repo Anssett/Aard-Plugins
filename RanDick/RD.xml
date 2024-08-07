@@ -33,6 +33,8 @@ Description goes here
     enabled="y" expand_variables="y" regexp="y" script="handle_rd" send_to="12" sequence="100"></alias>
   <alias match="^randick (?<command>\S+)( (?<argument>\S+))?$" 
       enabled="y" expand_variables="y" regexp="y" script="handle_randick" send_to="12" sequence="100"></alias>
+<!--  <alias match="^randick update (?<action>check|install)$" 
+    enabled="y" expand_variables="y" regexp="y" script="update_check_alias" send_to="12" sequence="99"></alias> -->
 </aliases>
 
 <script>

@@ -31,6 +31,9 @@ A plugin to collect and report "Seek" clanskill output
 
 A plugin to allow "curated" randoms. Starts out with an empty list that you fill, and then can have more specific randoms.
 
+> [!NOTE]
+> To install Randick, download both the rd.xml and rd.lua files, and put them both in the Mushclient plugins folder. Only add the rd.xml file in the Mushclient plugins interface.
+
 `rd <channel> [target]`
 - sends a random from randick list to channel, aimed at target.
 - channel value is required. target value is optional.

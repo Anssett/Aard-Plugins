@@ -17,19 +17,24 @@ if (GetVariable("rd_data") ~= nil) then
 end
 
 function handle_rd(_,_,args)
+    math.randomseed(os.time())
     local randNum = math.random(1,(#randoms-1))
     local chan = args["channel"]
     local target = args["target"] or ""
-    
     local social = randoms[randNum]
     local cmd = args["channel"] .. " *" .. social
-    
+
     if not (target == "") or not (target == nil) then
         cmd = cmd .. " " .. target
     end
 
     colorsToAnsiNote(randick_prefix .. " " .. textColor .. social)
-    Execute(cmd)
+    SendNoEcho(cmd)
+end
+
+function testRandom()
+    math.randomseed(os.time())
+    Note(math.random(1,(#randoms-1)))
 end
 
 function handle_randick(_,_,args)
@@ -38,10 +43,6 @@ function handle_randick(_,_,args)
     if command == "help" then
         OnHelp()
     elseif command == "add" then
---[[
-        I don't think I need to separate single and multiple.
-    add_random(argument) --add single
-    elseif command == "madd" then --add multiple ]]--
         add_multi()
     elseif command == "rem" then
         rem_random(argument)
@@ -52,22 +53,26 @@ function handle_randick(_,_,args)
     elseif command == "update" then
         if argument == "install" then update_install_alias()
         else update_check_alias() end
+    elseif command == "reset" then
+        resetData()
+    elseif command == "test" then
+        testRandom()
     else
-        Note("something else?")
+        colorsToAnsiNote(cmdColor .. "Invalid Randick option.")
     end
 end
 
 function insert_random(thing)
-    Note("adding " ..thing)
     -- check for existince of the social in array
     if checkTable(thing) then
         -- if true, string exists in list
         return false
     else
         -- if false, string does not exist in list.
-        if not (thing == nil) or not (thing == "") then
+        if not isEmpty(thing) or (#thing > 0) then
             --if not an empty string, then do the insert
             table.insert(randoms,thing)
+            colorsToAnsiNote(cmdColor .. "[" .. thing .. "]" .. textColor .. " added. Length of " .. #thing)
             SetVariable("rd_data", serialize.save_simple(randoms))
             return true
         else
@@ -77,6 +82,8 @@ function insert_random(thing)
     end
 end
 
+--don't think this is getting used any more.
+--[[
 function add_random(argument)
     local newRandom = utils.inputbox(
         "Add a single social",
@@ -92,8 +99,9 @@ function add_random(argument)
         }
     )
     if not isEmpty(newRandom) then insert_random(newRandom)
-    else Note("You didn't put anything in the box :(") end
+    else colorsToAnsiNote(textColor .. "That was empty input. Nothing added.") end
 end
+]]--
 
 function add_multi()
     local randomList = utils.editbox(
@@ -108,13 +116,13 @@ function add_multi()
     if isEmpty(randomList) then
         colorsToAnsiNote(randick_prefix .. textColor .. " That was a blank line. Try again.")
     elseif string.find(randomList,",") then
-         Note("comma separated")
+--         Note("comma separated")
          local randTable = utils.split(randomList,",")
          for _,v in pairs(randTable) do
-            insert_random(v)
+            insert_random(trim(v))
          end
     elseif string.find(randomList,"\n") then
-        Note("newline separated")
+--        Note("newline separated")
         local randTable = utils.split(randomList,"\n")
         for _,v in pairs(randTable) do
             local stringArr = {}
@@ -125,7 +133,6 @@ function add_multi()
             --insert_random(v)
         end
     else
---        Note("I suppose you COULD use this to add a single random, but use randick add next time instead.")
         local randTable = utils.split(randomList,"\n")        
         for _,v in pairs(randTable) do
             local stringArr = {}
@@ -133,7 +140,6 @@ function add_multi()
             insert_random(trim(string.sub(v,16,30)))
             insert_random(trim(string.sub(v,31,45)))
             insert_random(trim(string.sub(v,46,61)))
-            --insert_random(v)
         end
     end
 end
@@ -144,24 +150,21 @@ function rem_random(argument)
             if j==argument then table.remove(randoms,i) end
         end
     else
-        
+
     end
     SetVariable("rd_data", serialize.save_simple(randoms))
 end
 
-function rem_multi()
-    Note("feature coming soon...")
-    --utils.multilistbox("description","title",{"arg","three","here"})
-end
-
 function list_random()
-    Note("this will get prettier sometime")
-    tprint(randoms)
+    for _,v in ipairs(randoms) do
+        colorsToAnsiNote(textColor .. v)
+    end
+    colorsToAnsiNote(cmdColor .. "Number of socials: [" .. textColor .. #randoms .. cmdColor .. "]")
 end
 
 function resetData()
-	ColourNote("#0152a1","","----RANDICK RESET----")
-    ColourNote("#0152a1","","HOPE YOU MADE A BACKUP")
+    colorsToAnsiNote(borderColor .. "------------------" .. textColor .. "Randick Reset" .. borderColor .. "------------------")
+    colorsToAnsiNote(textColor .. "HOPE YOU MADE A BACKUP")
 	randoms = { }
 	SetVariable("rd_data", serialize.save_simple(randoms))
 end
@@ -194,12 +197,12 @@ function OnHelp()
     Note()
     colorsToAnsiNote(borderColor .. "--==" .. textColor .. "Sending Randoms" .. borderColor .. "==--")
     colorsToAnsiNote(cmdColor .. "rd <channel> [target]")
-    colorsToAnsiNote(textColor .. "     sends a random from " .. cmdColor .. "randick list" .. textColor .. " to " .. cmdColor .. "channel" .. textColor .. ", aimed at " .. cmdColor .. "target" .. textColor .. ".")
+    colorsToAnsiNote(textColor .. "     Sends a random from " .. cmdColor .. "randick list" .. textColor .. " to " .. cmdColor .. "channel" .. textColor .. ", aimed at " .. cmdColor .. "target" .. textColor .. ".")
     colorsToAnsiNote(cmdColor .. "     channel" .. textColor .. " value is not optional. " .. cmdColor .. "target" .. textColor .. " value is optional.")
     Note()
     colorsToAnsiNote(borderColor .. "--==" .. textColor .. "Configuring Randick" .. borderColor .. "==--")
     colorsToAnsiNote(cmdColor .. "randick help")
-    colorsToAnsiNote(textColor .. "     This helpfile")
+    colorsToAnsiNote(textColor .. "     This helpfile.")
     Note()
     colorsToAnsiNote(cmdColor .. "randick add")
     colorsToAnsiNote(textColor .. "     Opens a text box to add socials to. You can copy/paste directly from " .. cmdColor .. "social <word>" .. textColor .. " output from the mud,")
@@ -207,12 +210,18 @@ function OnHelp()
     Note()
     colorsToAnsiNote(cmdColor .. "randick rem <social>")
     colorsToAnsiNote(textColor .. "     Removes a single specified social from the list. Has to match exactly.")
---[[    Note()
-    colorsToAnsiNote(cmdColor .. "randick mrem")
-    colorsToAnsiNote(textColor .. "     Future feature. Maybe. To remove multiple socials in one go. Probably won't make this actually happen, but you never know.") ]]--
     Note()
     colorsToAnsiNote(cmdColor .. "randick list")
     colorsToAnsiNote(textColor .. "     Shows the current list of socials. It's ugly right now. Maybe some day it will be less ugly.")
+    Note()
+    colorsToAnsiNote(cmdColor .. "randick reset")
+    colorsToAnsiNote(textColor .. "     Resets the list of socials. To empty. Don't do this unless you mean to.")
+    Note()
+    colorsToAnsiNote(cmdColor .. "randick update check")
+    colorsToAnsiNote(textColor .. "     Checks for plugin updates.")
+    Note()
+    colorsToAnsiNote(cmdColor .. "randick update install")
+    colorsToAnsiNote(textColor .. "     Updates Randick, if any are available.")
 end
 
 function OnPluginSaveState()
@@ -227,9 +236,9 @@ function OnPluginInstall(msg, id, name, text)
 		luastmt = "obj = " .. GetVariable("rd_data")
 		assert (loadstring (luastmt or "")) ()
 		randoms = obj
-        Note("loaded rd_data")
+        colorsToAnsiNote(randick_prefix .. textColor .. " loaded Randick data.")
 	else
-        Note("reset rd_data")
+        colorsToAnsiNote(randick_prefix .. textcolor .. "reset rd_data")
 		resetData()
 	end
 end
@@ -288,12 +297,7 @@ json = require("json")
          note_error("Couldn't create async url request.")
          return
      end
---[[ can maybe remove this...
-     if not urlLuaThread then
-        note_error("Couldn't create async url request - lua file")
-        return
-     end
-    ]]--  
+
      local timeout = 10
      local totTime = 0
      while (urlThread:alive() and totTime < timeout) do

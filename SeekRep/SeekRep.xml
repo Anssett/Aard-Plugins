@@ -19,7 +19,7 @@ comments go here
    save_state="y"
    date_written="2024-06-06 20:24:22"
    requires="5.07"
-   version="2.0"
+   version="2.1"
    >
 <description trim="y">
 <![CDATA[
@@ -61,7 +61,8 @@ Updating:
   <alias match="seekrep update check" enabled="y" script="update_check_alias" sequence="99"/>
   <alias match="seekrep update install" enabled="y" script="update_install_alias" sequence="99"/>
 
-  <alias match="^seekrep config(\s((?<command>(echo|channel|rvcolor|rncolor|sepcolor)) (?<value>.+)))?$" enabled="y" regexp="y" script="config_handler" sequence="99"></alias>
+  <alias match="^seekrep config(\s((?<command>(channel|rvcolor|rncolor|sepcolor|output)) (?<value>.+)))?$" enabled="y" regexp="y" script="config_handler" sequence="99"></alias>
+  <alias match="^seekrep config(\s((?<command>(output)) (?<value>(echo|channel|both))))?$" enabled="y" regexp="y" script="config_handler" sequence="99"></alias>
   <alias match="^seekrep config (?<command>reset|help)$" enabled="y" regexp="y" script="config_handler" sequence="99"></alias>
 </aliases>
 
@@ -180,7 +181,7 @@ function showVuln()
   local resNameColor = getResNameColor()
   local resValColor = getResValColor()
 
-  local outString = resNameColor .. targetArray.shortn .. " vulnerable to: "
+  local outString = resNameColor .. targetArray.shortn .. " NOT immune to: "
   local vulnArray = {}
   for i=1,#targetArray.immunities do
     if not targetArray.immunities[i].immuVal then
@@ -266,13 +267,15 @@ function processCapture(lines)
     end
   end
 
-  if outText ~= "" then
-    if getEcho() then
+if outText ~= "" then
+    outType = getOutput()
+    if (outType == "echo") or (outType == "both") then
       colorsToAnsiNote(outText)
     end
-    SendNoEcho(getChannel() .. " "..outText)
+    if (outType == "channel") or (outType == "both") then
+      SendNoEcho(getChannel() .. " "..outText)
+    end
   end
-
 end
 
 function colorsToAnsiNote(data)
@@ -307,11 +310,38 @@ function tableString(intab)
   local sepColor = getSepColor()
   local resNameColor = getResNameColor()
   local resValColor = getResValColor()
+  local dupVals = false
+--  local lastVal = -1
 
+  buildString = resNameColor .. "Target: " .. resValColor .. targetArray.shortn .. sepColor .. " | "
   for x=1,#intab do
+    if (x+1<=#intab) and (intab[x].resval == intab[x+1].resval) then
+      --resval and resval+1 are equal, enter duplicate cluster loop
+      if dupVals==false then --previous loop was not a duplicate loop, start duplicate loop
+        dupVals = true
+        Note("enabling dupe loop")
+      end
+      buildString = buildString .. resNameColor .. intab[x].resName
+    elseif (dupVals ==true and x==#intab) then --last record, gotta check if dupvals flag is set
+      buildString = buildString .. resNameColor .. intab[x].resName .. " " .. resValColor .. intab[x].resval .. "%" .. sepColor .. " | @w"
+      dupVals = false
+    else
+      if dupVals == true then
+        buildString = buildString ..intab[x].resName .. " " .. resValColor .. intab[x].resval .. "%".. sepColor .. " | @w"
+        dupVals = false
+        Note("ending dupe loop")
+      else
+        buildString = buildString .. resNameColor.. intab[x].resName..": "..resValColor ..intab[x].resval .. "%" .. sepColor .. " | @w"
+      end
+    end
+
+    if dupVals == true then 
+      buildString = buildString .. ", "
+    end
+--[[ uncomment to restore to old functionality
     buildString = buildString .. resNameColor.. intab[x].resName..": "..resValColor ..intab[x].resval .. "%" .. sepColor .. " | @w"
+    ]]
   end
-  buildString = buildString .. resNameColor .. "Target: " .. targetArray.shortn
 
   return buildString
 end
@@ -319,15 +349,21 @@ end
 function config_handler(name, line, args)
     arg = args.command
    if arg=="" then
-     Note("SeekRep Configs:")
-     Note("Echo:                " .. tostring(getEcho()))
-     Note("Channel:             " .. getChannel())
-     Note("Resist Value Color:  ".. getResValColor())
-     Note("Resist Name Color:   " .. getResNameColor())
-     Note("Separator Color:     "..getSepColor())
-   elseif arg == "echo" then
-      Note("Toggled Echo to "..args.value)
-      setEcho(args.value)
+    local sepColor = getSepColor()
+    local resNameColor = getResNameColor()
+    local resValColor = getResValColor()
+     colorsToAnsiNote(resNameColor .. "--------------[" .. resValColor .. " SeekRep configuration "..resNameColor .. "]--------------")
+     colorsToAnsiNote(resNameColor .. "")
+     colorsToAnsiNote(resNameColor .. " Output config:       " .. resValColor .. getOutput())
+     colorsToAnsiNote(resNameColor .. " Channel:             " .. resValColor .. getChannel())
+     colorsToAnsiNote(resNameColor .. " Resist Value Color:  ")
+                 Note("                      " .. getResValColor())
+     colorsToAnsiNote(resNameColor .. " Resist Name Color:   ")
+     Note("                      " .. getResNameColor())
+     colorsToAnsiNote(resNameColor .. " Separator Color:     ")
+     Note("                      " .. getSepColor())
+     colorsToAnsiNote(resNameColor .. "")
+     colorsToAnsiNote(resNameColor .. "----------------[" .. resValColor .. " End configuration "..resNameColor .. "]----------------")
    elseif arg == "channel" then
       Note("Set reporting channel to " .. args.value)
       setChannel(args.value)
@@ -340,6 +376,9 @@ function config_handler(name, line, args)
    elseif arg == "sepcolor" then
       Note("Set separator color to " .. args.value)
       setSepColor(args.value)
+   elseif arg == "output" then
+      Note("Set output method to " .. args.value)
+      setOutput(args.value)
    elseif arg == "help" then
       configHelp()
    elseif arg== "reset" then
@@ -349,14 +388,14 @@ function config_handler(name, line, args)
    end
  end
 
- function setEcho(value)
-  SetVariable("outEcho",value)
+ function setOutput(value)
+  SetVariable("output",value)
   SaveState()
  end
  
- function getEcho()
-  local echo = GetVariable("outEcho")
-  return echo
+ function getOutput()
+  local output = GetVariable("output")
+  return output
  end
 
  function setChannel(value)
@@ -400,16 +439,22 @@ function config_handler(name, line, args)
  end
 
 function configHelp()
-  Note("Config options:")
-  Note("seekrep config [echo|channel|rvcolor|rncolor|sepcolor|reset|help] <value>")
-  Note("  echo:     [true|false] - enables or disables local echo of seek results")
-  Note("  channel:  [string] - set the game channel that seek reports to")
-  Note("  rvcolor:  [string] - set the color code for resist values. Use @ prefixed colors. Supports xterm or mud colors.")
-  Note("  rncolor:  [string] - set the color code for resist names. Use @ prefixed colors. Supports xterm or mud colors.")
-  Note("  sepcolor: [string] - set the color code for the separator characters. Supports xterm or mud colors.")
-  Note("  reset:    resets config values to defaults.")
-  Note("  help:     This data.")
-
+  local sepColor = getSepColor()
+  local resNameColor = getResNameColor()
+  local resValColor = getResValColor()
+  Note()
+  colorsToAnsiNote(resNameColor .. "----------[" .. resValColor .. " SeekRep configuration options "..resNameColor .. "]----------")
+  colorsToAnsiNote(resNameColor .. "")
+  colorsToAnsiNote(resNameColor .. " seekrep config" .. resValColor .. " [output|channel|rvcolor|rncolor|sepcolor|reset|help] <value>")
+  colorsToAnsiNote(resNameColor .. "   output:   "..resValColor.."[echo|channel|both] " ..resNameColor .. "set the output method - to echo, to a channel or to both echo and channel.")
+  colorsToAnsiNote(resNameColor .. "   channel:  "..resValColor.."[string]            " ..resNameColor .. "set the game channel that seek reports to")
+  colorsToAnsiNote(resNameColor .. "   rvcolor:  "..resValColor.."[string]            " ..resNameColor .. "set the color code for resist values. Use @ prefixed colors. Supports xterm or mud colors.")
+  colorsToAnsiNote(resNameColor .. "   rncolor:  "..resValColor.."[string]            " ..resNameColor .. "set the color code for resist names. Use @ prefixed colors. Supports xterm or mud colors.")
+  colorsToAnsiNote(resNameColor .. "   sepcolor: "..resValColor.."[string]            " ..resNameColor .. "set the color code for the separator characters. Supports xterm or mud colors.")
+  colorsToAnsiNote(resNameColor .. "   reset:    "..resValColor.."                    " ..resNameColor .. "resets config values to defaults.")
+  colorsToAnsiNote(resNameColor .. "   help:     "..resValColor.."                    " ..resNameColor .. "This data.")
+  colorsToAnsiNote(resNameColor .. "")
+  colorsToAnsiNote(resNameColor .. "---------------------[" .. resValColor .. " End help "..resNameColor .. "]---------------------")
 end
 
 function isEmpty(testme)
@@ -421,7 +466,7 @@ function resetVars()
   setResNameColor("@W")
   setSepColor("@M")
   setChannel("gtell")
-  setEcho("true")
+  setOutput("echo")
 end
 
 function initVars()
@@ -429,7 +474,7 @@ function initVars()
   if isEmpty(getResNameColor()) then setResNameColor("@W") end
   if isEmpty(getSepColor()) then setSepColor("@M") end
   if isEmpty(getChannel()) then setChannel("gtell") end
-  if isEmpty(getEcho()) then setEcho("true") end
+  if isEmpty(getOutput()) then setOutput("echo") end
 end
 
 function OnPluginInstall()

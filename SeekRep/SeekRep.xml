@@ -19,7 +19,7 @@ comments go here
    save_state="y"
    date_written="2024-06-06 20:24:22"
    requires="5.07"
-   version="2.1"
+   version="2.2"
    >
 <description trim="y">
 <![CDATA[
@@ -27,27 +27,11 @@ SeekRep
 -------
 Seek clanskill output reporter.
 
-ON FIRST SETUP, START WITH:
-    seekrep config help
+>> seekrep config help
+   for initial setup configuration
 
-seekrep <target> [top|bot] [quantity]
-    <target>    Required. Single keyword of target. Ordinal targets are ok (1.lasher, 2.lasher, etc.)
-                multiple words or quotes are not.
-    [top|bot|immcheck|all]   Optional. If nothing given, defaults to "bot". "bot" sorts ascending, "top" sorts descending. 
-                "immcheck" returns non-immune damtypes. "all" is the old "block of blue text" that is mostly used for debugging right now.
-    [quantity]  Optional. Restricts quantity of results.
-
-Examples:
-    seekrep lasher top 3
-      Performs "seek" on lasher, then prints his highest 3 resistances.
-    
-    seekrep lasher 5
-      Performs "seek" on lasher, then prints his lowest 5 resistances.
-
-Updating:
-    seekrep update check:   Checks if there's an update to the plugin.
-    seekrep update install: Installs any available updates to this plugin.
-
+>> seekrep help
+   for general use
 ]]>
 </description>
 
@@ -195,7 +179,35 @@ function showVuln()
 end
 
 function OnHelp ()
-  world.Note (world.GetPluginInfo (world.GetPluginID (), 3))
+  local borderColor = "@x025"
+  local textColor = "@x178"
+  local cmdColor = "@W"
+  
+  colorsToAnsiNote(borderColor .. "------------------" .. textColor .. " SeekRep Help " .. borderColor .. "------------------")
+  Note()
+  colorsToAnsiNote(borderColor .. "--==" .. textColor .. "Initial Setup" .. borderColor .. "==--")
+  colorsToAnsiNote(textColor .. "After the first installation, run " .. cmdColor .. "seekrep config help")
+  Note()
+  colorsToAnsiNote(borderColor .. "--==" .. textColor .. " General Use " .. borderColor .. "==--")
+  Note()
+  colorsToAnsiNote(cmdColor .. "seekrep <target> [top|bot] [quantity]")
+  colorsToAnsiNote(cmdColor .. "   <target>" .. textColor .. "    Required. Single keyword of target. Ordinal targets are ok (1.lasher, 2.lasher, etc.)")
+  colorsToAnsiNote(textColor .. "               multiple words or quotes are not.")
+  colorsToAnsiNote(cmdColor .. "   [top|bot|immcheck|all]" .. textColor .. "   Optional. If nothing given, defaults to " .. cmdColor .. "bot" .. textColor .. "." .. cmdColor .. "bot" .. textColor .. " sorts ascending, " .. cmdColor .. "top" .. textColor .. " sorts descending.")
+  colorsToAnsiNote(cmdColor .. "               immcheck" .. textColor .. " returns non-immune damtypes. " .. cmdColor .. "all" .. textColor .. " is mostly used for debugging right now.")
+  colorsToAnsiNote(cmdColor .. "   [quantity]" .. textColor .. "  Optional. Restricts quantity of results.")
+  Note()
+  colorsToAnsiNote(borderColor .. "--==" .. textColor .. "  Examples   " .. borderColor .. "==--")
+  Note()
+  colorsToAnsiNote(cmdColor .. "seekrep lasher top 3" .. textColor .. "  Performs " .. cmdColor .. "seek" .. textColor .. " on lasher, then prints his highest 3 resistances.")
+  Note()
+  colorsToAnsiNote(cmdColor .. "seekrep lasher 5" .. textColor .. "      Performs " .. cmdColor .. "seek" .. textColor .. " on lasher, then prints his lowest 5 resistances.")
+  Note()
+  colorsToAnsiNote(borderColor .. "--==" .. textColor .. "  Updating   " .. borderColor .. "==--")
+  Note()
+  colorsToAnsiNote(cmdColor .. "seekrep update check" .. textColor .. "   Checks if there's an update to the plugin.")
+  colorsToAnsiNote(cmdColor .. "seekrep update install" .. textColor .. " Installs any available updates to this plugin.")
+  colorsToAnsiNote(borderColor .. "--------------------------------------------------")
 end
 
 function startSeek(name,line, args)
@@ -213,7 +225,12 @@ function startSeek(name,line, args)
   local noFollowPrompt=false
   local sendViaExecute=true
 
+  -- uncomment next 2 lines once wrapped_capture update from Crowley goes in. If it goes in.
+--  local timeoutDuration=5
+--  Capture.tagged_output(command,startTag,endTag,tagsAreRegex,noCommandEcho,omitResponse,noFollowPrompt,processCapture,sendViaExecute,seekFail,timeoutDuration)
+
   Capture.tagged_output(command,startTag,endTag,tagsAreRegex,noCommandEcho,omitResponse,noFollowPrompt,processCapture,sendViaExecute,seekFail)
+
 end
 
 function processCapture(lines)
@@ -319,7 +336,6 @@ function tableString(intab)
       --resval and resval+1 are equal, enter duplicate cluster loop
       if dupVals==false then --previous loop was not a duplicate loop, start duplicate loop
         dupVals = true
-        Note("enabling dupe loop")
       end
       buildString = buildString .. resNameColor .. intab[x].resName
     elseif (dupVals ==true and x==#intab) then --last record, gotta check if dupvals flag is set
@@ -329,7 +345,6 @@ function tableString(intab)
       if dupVals == true then
         buildString = buildString ..intab[x].resName .. " " .. resValColor .. intab[x].resval .. "%".. sepColor .. " | @w"
         dupVals = false
-        Note("ending dupe loop")
       else
         buildString = buildString .. resNameColor.. intab[x].resName..": "..resValColor ..intab[x].resval .. "%" .. sepColor .. " | @w"
       end

@@ -19,7 +19,7 @@ comments go here
    save_state="y"
    date_written="2024-06-06 20:24:22"
    requires="5.07"
-   version="2.2"
+   version="2.3"
    >
 <description trim="y">
 <![CDATA[
@@ -40,7 +40,7 @@ Seek clanskill output reporter.
 <triggers></triggers>
 
 <aliases>
-  <alias match="^seekrep\s(?<name>((\d*\.)?\w+))\s?(?<dir>(top|bot|all|immcheck))?\s?(?<qty>\d+)?" script="startSeek" regexp="y" enabled="y" group="seekrep" send_to="12" sequence="100" ></alias>
+  <alias match="^seekrep\s(?<name>((\d*\.)?\w+))\s?(?<dir>(top|bot|all|immcheck|verbose))?\s?(?<qty>\d+)?" script="startSeek" regexp="y" enabled="y" group="seekrep" send_to="12" sequence="100" ></alias>
   <alias script="OnHelp" match="seekrep help" enabled="y"></alias>
   <alias match="seekrep update check" enabled="y" script="update_check_alias" sequence="99"/>
   <alias match="seekrep update install" enabled="y" script="update_install_alias" sequence="99"/>
@@ -193,8 +193,9 @@ function OnHelp ()
   colorsToAnsiNote(cmdColor .. "seekrep <target> [top|bot] [quantity]")
   colorsToAnsiNote(cmdColor .. "   <target>" .. textColor .. "    Required. Single keyword of target. Ordinal targets are ok (1.lasher, 2.lasher, etc.)")
   colorsToAnsiNote(textColor .. "               multiple words or quotes are not.")
-  colorsToAnsiNote(cmdColor .. "   [top|bot|immcheck|all]" .. textColor .. "   Optional. If nothing given, defaults to " .. cmdColor .. "bot" .. textColor .. "." .. cmdColor .. "bot" .. textColor .. " sorts ascending, " .. cmdColor .. "top" .. textColor .. " sorts descending.")
-  colorsToAnsiNote(cmdColor .. "               immcheck" .. textColor .. " returns non-immune damtypes. " .. cmdColor .. "all" .. textColor .. " is mostly used for debugging right now.")
+  colorsToAnsiNote(cmdColor .. "   [top|bot|immcheck|all|verbose]" .. textColor .. "   Optional. If nothing given, defaults to " .. cmdColor .. "bot" .. textColor .. ". " .. cmdColor .. "bot" .. textColor .. " sorts ascending, " .. cmdColor .. "top" .. textColor .. " sorts descending.")
+  colorsToAnsiNote(cmdColor .. "               immcheck" .. textColor .. " returns non-immune damtypes. " .. cmdColor .."all" .. textColor .. " does a rewrite of seek output to include 0 value resists instead of hiding them. ")
+  colorsToAnsiNote(cmdColor .. "               verbose" .. textColor .. " is mostly used for debugging right now.")
   colorsToAnsiNote(cmdColor .. "   [quantity]" .. textColor .. "  Optional. Restricts quantity of results.")
   Note()
   colorsToAnsiNote(borderColor .. "--==" .. textColor .. "  Examples   " .. borderColor .. "==--")
@@ -269,10 +270,12 @@ function processCapture(lines)
       end
   end
 
-  if dir == "all" then
+  if dir == "verbose" then
     tprint(targetArray)
   elseif dir=="immcheck" then
     outText = showVuln()
+  elseif dir=="all" then
+    redrawSeek()
   else
     if qty>0 then
       outText = tableString(getTableX(qty,dir))
@@ -293,6 +296,43 @@ if outText ~= "" then
       SendNoEcho(getChannel() .. " "..outText)
     end
   end
+end
+
+function redrawSeek()
+  colorsToAnsiNote("@W----------------------------------------------------------------@w")
+  colorsToAnsiNote("@WYour research into @R" .. targetArray.shortn .. "@W reveals the following .... @w")
+  Note() --"@W"
+  colorsToAnsiNote("@GMob Short Name   : @w" .. targetArray.shortn .. "@w")
+  colorsToAnsiNote("@GMob Base Level   : @w" .. targetArray.baselev .. "@w")
+  colorsToAnsiNote("@GIdentical Mobs   : @w" .. targetArray.identical .. "@w")
+  colorsToAnsiNote("@GTimes Killed     : @w" .. targetArray.timeskilled .. "@w")
+  colorsToAnsiNote("@GAlignment        : @w" .. targetArray.align .. "@w")
+  colorsToAnsiNote("@WNote             @w: @G" .. targetArray.notes .. "@w")
+  colorsToAnsiNote("@WImmunities       : @w" .. "<do something here to reconstruct immunities>" .. "@w")
+  colorsToAnsiNote("@W------------------------- @G[ Resistances ]@W ----------------------@w")
+  colorsToAnsiNote("@gBash            @W:@g    " .. getVal("Bash") .. "%      Pierce          @W:@g    " .. getVal("Pierce") .. "% @w")
+  colorsToAnsiNote("@gSlash           @W:@g    " .. getVal("Slash") .. "%      Acid            @W:@g    " .. getVal("Slash") .. "% @w")
+  colorsToAnsiNote("@gAir             @W:@g    " .. getVal("Air") .. "%      Cold            @W:@g    " .. getVal("Cold") .. "% @w")
+  colorsToAnsiNote("@gDisease         @W:@g    " .. getVal("Disease") .. "%      Earth           @W:@g    " .. getVal("Earth") .. "% @w")
+  colorsToAnsiNote("@gElectric        @W:@g    " .. getVal("Electric") .. "%      Energy          @W:@g    " .. getVal("Energy") .. "% @w")
+  colorsToAnsiNote("@gFire            @W:@g    " .. getVal("Fire") .. "%      Holy            @W:@g    " .. getVal("Holy") .. "% @w")
+  colorsToAnsiNote("@gLight           @W:@g    " .. getVal("Light") .. "%%      Magic           @W:@g    " .. getVal("Magic") .. "% @w")
+  colorsToAnsiNote("@gMental          @W:@g    " .. getVal("Mental") .. "%%      Negative        @W:@g    " .. getVal("Negative") .. "%% @w")
+  colorsToAnsiNote("@gPoison          @W:@g    " .. getVal("Poison") .. "%%      Shadow          @W:@g    " .. getVal("Shadow") .. "% @w")
+  colorsToAnsiNote("@gSonic           @W:@g    " .. getVal("Sonic") .. "%      Water           @W:@g    " .. getVal("Water") .. "% @w")
+  colorsToAnsiNote("@W---------------------------------------------------------------- @w")
+
+
+end
+
+function getVal(searchStr)
+  for i,j in pairs(targetArray.resists) do
+    if string.lower(j.resName) == string.lower(searchStr) then
+        return j.resval
+    end
+  end
+--  tprint(targetArray.resists)
+  return 0
 end
 
 function colorsToAnsiNote(data)

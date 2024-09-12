@@ -19,7 +19,7 @@ comments go here
    save_state="y"
    date_written="2024-06-06 20:24:22"
    requires="5.07"
-   version="2.3"
+   version="2.31"
    >
 <description trim="y">
 <![CDATA[
@@ -316,9 +316,9 @@ function redrawSeek()
   colorsToAnsiNote("@gDisease         @W:@g    " .. getVal("Disease") .. "%      Earth           @W:@g    " .. getVal("Earth") .. "% @w")
   colorsToAnsiNote("@gElectric        @W:@g    " .. getVal("Electric") .. "%      Energy          @W:@g    " .. getVal("Energy") .. "% @w")
   colorsToAnsiNote("@gFire            @W:@g    " .. getVal("Fire") .. "%      Holy            @W:@g    " .. getVal("Holy") .. "% @w")
-  colorsToAnsiNote("@gLight           @W:@g    " .. getVal("Light") .. "%%      Magic           @W:@g    " .. getVal("Magic") .. "% @w")
-  colorsToAnsiNote("@gMental          @W:@g    " .. getVal("Mental") .. "%%      Negative        @W:@g    " .. getVal("Negative") .. "%% @w")
-  colorsToAnsiNote("@gPoison          @W:@g    " .. getVal("Poison") .. "%%      Shadow          @W:@g    " .. getVal("Shadow") .. "% @w")
+  colorsToAnsiNote("@gLight           @W:@g    " .. getVal("Light") .. "%      Magic           @W:@g    " .. getVal("Magic") .. "% @w")
+  colorsToAnsiNote("@gMental          @W:@g    " .. getVal("Mental") .. "%      Negative        @W:@g    " .. getVal("Negative") .. "% @w")
+  colorsToAnsiNote("@gPoison          @W:@g    " .. getVal("Poison") .. "%      Shadow          @W:@g    " .. getVal("Shadow") .. "% @w")
   colorsToAnsiNote("@gSonic           @W:@g    " .. getVal("Sonic") .. "%      Water           @W:@g    " .. getVal("Water") .. "% @w")
   colorsToAnsiNote("@W---------------------------------------------------------------- @w")
 

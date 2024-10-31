@@ -15,7 +15,7 @@
    save_state="y"
    date_written="2024-01-27 14:24:24"
    requires="5.07"
-   version="1.2"
+   version="1.3"
    >
 <description trim="y">
 <![CDATA[
@@ -405,6 +405,10 @@ function OnHelp ()
   ColourNote("#a8acad","black","wcc help","white","black"," - this")
   ColourNote("#a8acad","black","wcc find","white","black"," - Looks for the yeti. Once yeti is found, sending wcc find again will run you to the yeti's room. You still have to give flaming.")
   ColourNote("#a8acad","black","wcc report <channel>","white","black"," - report stats to <channel>. Might not work, it's been a while. Probably doesn't work")
+  Note()
+  ColourNote("white","black","Updating:")
+  ColourNote("#a8acad","black","wcc update check","white","black"," - Check for updates.")
+  ColourNote("#a8acad","black","wcc update install","white","black"," - Install updates if any.")
   Note()
   ColourNote("#a8acad","black","any other aliases in this plugin","white","black"," - Used for testing. ")
 

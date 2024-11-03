@@ -15,7 +15,7 @@
    save_state="y"
    date_written="2024-01-27 14:24:24"
    requires="5.07"
-   version="1.4"
+   version="1.5"
    >
 <description trim="y">
 <![CDATA[
@@ -67,8 +67,9 @@
   <alias script="findWCC" match="wcc find" enabled="y"></alias>
   <alias script="statusToggle" match="wcc status" enabled="y"></alias>
 
-  <alias match="wcc update check" enabled="y" script="update_check_alias" sequence="99"/>
-  <alias match="wcc update install" enabled="y" script="update_install_alias" sequence="99"/>
+  <alias match="wcc update check" enabled="y" script="update_check_alias" sequence="99"></alias>
+  <alias match="wcc update install" enabled="y" script="update_install_alias" sequence="99"></alias>
+  <alias match="wb" enabled="n" group="WCC" script="manualBreath"></alias>
 </aliases>
 
 <timers>
@@ -134,7 +135,7 @@ end
 
 function sendStatus()
   if wcc_data["next_stalac"] == 0 then
-    nextStal = "@RKill more whelps.@w"
+    nextStal = "@RKill a whelp.@w"
   else
     stalTime = os.difftime(wcc_data["next_stalac"],os.time())
     nextStal = tostring(stalTime) .. " to " .. tostring(stalTime + stalOffset) .. " sec"
@@ -151,8 +152,8 @@ function sendStatus()
 
   Note()
   --colorsToAnsiNote("@M(@YWCC@M)@W [Stalactite in @Y" .. nextStal .. "@W]")
-  colorsToAnsiNote(wccTag .. " @WShards in @Y".. nextShards .. "@W Stalactite in @Y" .. nextStal .. "@w")
-  colorsToAnsiNote(wccTag .. " @WBreath: " .. breathString .. " @B|@Y" .. wcc_data["breath_durability"] .. "@W charges @B|@W Egg @Y"..wcc_data["egg_dead"].."@B/@y8@W @B|@W Whelp @Y"..wcc_data["whelp_dead"].."@B/@y8@W @B|@W Stalac @Y"..wcc_data["stalac_dead"].."@W [@y" ..  os.date("%M:%S",os.time()-timerStart) .. "@W]@w")
+  colorsToAnsiNote(wccTag .. " @WShards in @Y".. nextShards .. " @B|@W Stalactite in @Y" .. nextStal .. "@w")
+  colorsToAnsiNote(wccTag .. " @WBreath: " .. breathString .. " @B|@Y " .. wcc_data["breath_durability"] .. "@W charges @B|@W Egg @Y"..wcc_data["egg_dead"].."@B/@y8@W @B|@W Whelp @Y"..wcc_data["whelp_dead"].."@B/@y8@W @B|@W Stalac @Y"..wcc_data["stalac_dead"].."@W [@y" ..  os.date("%M:%S",os.time()-timerStart) .. "@W]@w")
   Note()
 end
 
@@ -227,7 +228,7 @@ function startRun()
   timerStart = os.time()
   EnableTriggerGroup("WCC", true)
   EnableTrigger("wcc_u_ded", true)
-
+  EnableAliasGroup("WCC", true)
   wcc_data["next_shard"] = os.time() + startShard
   --notify run start
   colorsToAnsiNote(wccTag .. " @WStarted at	@w[@y" .. os.date("%x %X",timerStart) .. "@w]")
@@ -236,22 +237,28 @@ end
 
 function deadWhelp()
   colorsToAnsiNote(wccTag .. " @WWhelp dead, wear breath. @w[@y" .. os.date("%M:%S",(os.time()-timerStart)) .. "@w]")
-  if (wcc_data["whelp_dead"] == 0) then
+  if (wcc_data["whelp_dead"] == 0 or wcc_data["breath_durability"] == 0) then
     Execute("wear breath")
     breathID()
   end
+  if (wcc_data["whelp_dead"] == 0) then
+    wcc_data["next_stalac"] = os.time() + minStal
+  end
   if(wcc_data["whelp_dead"] == 3) then
     wcc_data["next_wyrm"] = os.time() + minWyrm
-    EnableTrigger("wcc_map_timer", true)
+    Note("enabling map timer")
+    EnableTimer("wcc_map_timer", true)
   end
   wcc_data["whelp_dead"] = wcc_data["whelp_dead"] + 1
+  Execute("give 2.breath self")
 end
 
 function deadEgg()
+  --[[ does first dead egg do anything? dont think it does ....
   if (wcc_data["egg_dead"] == 0) then
-    wcc_data["next_stalac"] = os.time() + minStal
     ResetTimer("wcc_status_timer")
   end
+  ]]
 
   colorsToAnsiNote(wccTag .. " @WDead egg. @w[@y" .. os.date("%M:%S",(os.time()-timerStart)) .. "@w]")
   wcc_data["egg_dead"] = wcc_data["egg_dead"]+1
@@ -303,11 +310,12 @@ function endRun(dead, rm_hour, rm_min, rm_sec)
   statusSwitch(false)
 
   --report run stats
-  outString = wccTag .. " @WRun took @y" .. runMins .. " @Wminutes and @y" .. runSecs .. " @Wseconds, starting at @y" .. os.date("%x %X",timerStart) .. " @Wand ending at @y" .. os.date("%x %X",lastRun) .. "@w"
-  colorsToAnsiNote(outString)
+  colorsToAnsiNote(wccTag .. " @WRun took @y" .. runMins .. " @Wminutes and @y" .. runSecs .. " @Wseconds, starting at @y" .. os.date("%x %X",timerStart) .. " @Wand ending at @y" .. os.date("%x %X",lastRun) .. "@w")
+  colorsToAnsiNote(wccTag .. " @WYou killed @Y"..  wcc_data["egg_dead"].." @WEggs @B|@Y "..wcc_data["whelp_dead"].." @WWhelps @B|@Y "..wcc_data["stalac_dead"].." @WStalac@w")
   EnableTriggerGroup("WCC",false)
   EnableTrigger("wcc_u_ded", false)
   EnableTimerGroup("wcc_timers",false)
+  EnableAliasGroup("WCC",false)
 end
 
 function set_breath(name, line, args)
@@ -324,6 +332,8 @@ end
 
 function breathID()
   --enable id trigger group
+  wcc_data["breath_durability"] = 0
+  wcc_data["breath_timer"] = 0
   enableBreathID()
   --id worn breath
   Execute("id breath worn")
@@ -345,18 +355,29 @@ function breathMelt()
   end
 end
 
+function manualBreath()
+  Execute("wear breath")
+  enableBreathID()
+  Execute("id breath worn")
+end
+
 function findWCC()
-  Note(tostring(entrance))
+  --Note(tostring(entrance))
   if entrance==-1 then
+    EnableTrigger("wcc_find",true)
+    Note()
     colorsToAnsiNote(wccTag .. " @WHunting WCC entrance.")
+    Note()
     Execute("mapper goto 18347")
     local searchPath = "s;s;s;e;n;n;n;e;s;s;s;e;n;n;n;e;s;s;s;e;n;n;e;s;s;e;n;n;e;s;s;e;n;n;n;e;s;s;e;n;n"
     SendNoEcho("echo {WCCPATHSTART}")
     for i in string.gmatch(searchPath, "[^;]+") do SendNoEcho(i) end
     SendNoEcho("echo {WCCPATHDONE}")
   else
-    colorsToAnsiNote(wccTag .. " Running to @Y" .. entrance .. "@W.")
     EnableTrigger("wcc_find",false)
+    Note()
+    colorsToAnsiNote(wccTag .. " Running to @Y" .. entrance .. "@W.")
+    Note()
     Execute("mapper goto " .. entrance)
     resetEntrance()
     
@@ -370,12 +391,12 @@ end
 ]]--
 
 function setEntrance()
-  EnableTrigger("wcc_find",false)
+  --EnableTrigger("wcc_find",false)
   entrance = tonumber(gmcp("room.info.num"))
 end
 
 function resetEntrance()
-  EnableTrigger("wcc_find",true)
+  --EnableTrigger("wcc_find",true)
   entrance=-1
 end
 
@@ -413,6 +434,7 @@ function OnHelp ()
   ColourNote("#a8acad","black","wcc help","white","black"," - this")
   ColourNote("#a8acad","black","wcc find","white","black"," - Looks for the yeti. Once yeti is found, sending wcc find again will run you to the yeti's room. You still have to give flaming.")
   ColourNote("#a8acad","black","wcc report <channel>","white","black"," - report stats to <channel>. Might not work, it's been a while. Probably doesn't work")
+  ColourNote("#a8acad","black","wb","white","black"," - manually wear breath and do the id magic stuff")
   Note()
   ColourNote("white","black","Updating:")
   ColourNote("#a8acad","black","wcc update check","white","black"," - Check for updates.")

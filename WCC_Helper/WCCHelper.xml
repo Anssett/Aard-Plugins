@@ -15,7 +15,7 @@
    save_state="y"
    date_written="2024-01-27 14:24:24"
    requires="5.07"
-   version="1.6"
+   version="1.7"
    >
 <description trim="y">
 <![CDATA[
@@ -74,7 +74,7 @@
 
 <timers>
   <timer minute="0" second="6" enabled="n" script="sendStatus" name="wcc_status_timer" group="wcc_timers"></timer>
-  <timer minute="0" second="3" enabled="n" name="wcc_map_timer" group="wcc_timers" send_to="10">map</timer>
+  <timer minute="0" second="3" enabled="n" name="wcc_map_timer" group="wcc_timers" send_to="10"><send>map</send></timer>
 </timers>
 
 
@@ -442,7 +442,7 @@ function OnHelp ()
   ColourNote("white","black","Commands:")
   ColourNote("#a8acad","black","wcc help","white","black"," - this")
   ColourNote("#a8acad","black","wcc find","white","black"," - Looks for the yeti. Once yeti is found, sending wcc find again will run you to the yeti's room. You still have to give flaming.")
-  ColourNote("#a8acad","black","wcc report <channel>","white","black"," - report stats to <channel>. Might not work, it's been a while. Probably doesn't work")
+  ColourNote("#a8acad","black","wcc report <channel>","white","black"," - report stats to <channel>. Might not work, it's been a while. Works better than it once did...")
   ColourNote("#a8acad","black","wb","white","black"," - manually wear breath and do the id magic stuff")
   Note()
   ColourNote("white","black","Updating:")

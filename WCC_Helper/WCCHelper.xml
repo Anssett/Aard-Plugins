@@ -157,6 +157,7 @@ function sendStatus()
   colorsToAnsiNote(wccTag .. " @WShards in @Y".. nextShards .. " @B|@W Stalactite in @Y" .. nextStal .. "@w")
   colorsToAnsiNote(wccTag .. " @WBreath: " .. breathString .. " @B|@Y " .. wcc_data["breath_durability"] .. "@W charges @B|@W Egg @Y"..wcc_data["egg_dead"].."@B/@y8@W @B|@W Whelp @Y"..wcc_data["whelp_dead"].."@B/@y8@W @B|@W Stalac @Y"..wcc_data["stalac_dead"].."@W [@y" ..  os.date("%M:%S",os.time()-timerStart) .. "@W]@w")
   Note()
+  SendNoEcho()
 end
 
 --in case we want to do more than just colorHighlight. more processor cycles ftw.
@@ -189,6 +190,7 @@ function notify(name,line,wildcards)
 
   elseif name=="wcc_stalactite_side" then
     --get side of area stalac landed in. dont know if that's needed yet.
+    Execute("map")
     outString="Stalactite landed on " .. wildcards.stalactite_direction .. " side."
     colorsToAnsiNote(wccTag .. " @W"..outString.. " @w[@y" .. os.date("%M:%S",(os.time()-timerStart)) .. "@w]")
   elseif name=="wcc_stalactite_dead" then

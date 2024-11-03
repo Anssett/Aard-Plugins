@@ -15,7 +15,7 @@
    save_state="y"
    date_written="2024-01-27 14:24:24"
    requires="5.07"
-   version="1.5"
+   version="1.6"
    >
 <description trim="y">
 <![CDATA[
@@ -62,7 +62,7 @@
 
 <aliases>
   <alias script="OnHelp" match="wcc help" enabled="y"></alias>
-  <alias script="report" match="wcc report" enabled="y"></alias>
+  <alias script="report" match="wcc report *" enabled="y"></alias>
   <!-- <alias script="timeReport" match="wcc time" enabled="y"></alias> -->
   <alias script="findWCC" match="wcc find" enabled="y"></alias>
   <alias script="statusToggle" match="wcc status" enabled="y"></alias>
@@ -82,6 +82,7 @@
 <![CDATA[
 require 'aardwolf_colors'
 require 'gmcphelper'
+require 'tprint'
 
 local foreColor = "red"
 local backColor = "blue"
@@ -118,6 +119,7 @@ function initVars()
     ["next_wyrm"] = 0,
     ["last_wyrm"] = 0,
   }
+  last_run = GetVariable("wcc_last_run") or wccTag .. " No data yet, go murder some stalactites!"
 end
 
 function statusToggle()
@@ -302,6 +304,9 @@ function endRun(dead, rm_hour, rm_min, rm_sec)
     nextRunTime = lastRun + nextRunSec
     runString = wccTag .. " @WCome back at @y" .. os.date("%x %X",nextRunTime) .. "@W.@w"
     colorsToAnsiNote(runString)
+    run_fail = false
+  else
+    run_fail = true
   end
   --stop run timers
   runTimer = os.difftime(lastRun,timerStart)
@@ -309,9 +314,12 @@ function endRun(dead, rm_hour, rm_min, rm_sec)
   runSecs = runTimer-(runMins*60)
   statusSwitch(false)
 
+  if run_fail then wcc_run_fail = "@RFAIL" else wcc_run_fail = "@GWIN" end
   --report run stats
   colorsToAnsiNote(wccTag .. " @WRun took @y" .. runMins .. " @Wminutes and @y" .. runSecs .. " @Wseconds, starting at @y" .. os.date("%x %X",timerStart) .. " @Wand ending at @y" .. os.date("%x %X",lastRun) .. "@w")
   colorsToAnsiNote(wccTag .. " @WYou killed @Y"..  wcc_data["egg_dead"].." @WEggs @B|@Y "..wcc_data["whelp_dead"].." @WWhelps @B|@Y "..wcc_data["stalac_dead"].." @WStalac@w")
+  last_run = wccTag .. " @yLast run ["..wcc_run_fail .. "]: @Y"..  wcc_data["egg_dead"].." @WEggs @B|@Y "..wcc_data["whelp_dead"].." @WWhelps @B|@Y "..wcc_data["stalac_dead"].." @WStalac, in @y" .. runMins .. " @Wminutes and @y" .. runSecs .. " @Wseconds.@w"
+  SetVariable("wcc_last_run", last_run)
   EnableTriggerGroup("WCC",false)
   EnableTrigger("wcc_u_ded", false)
   EnableTimerGroup("wcc_timers",false)
@@ -400,7 +408,7 @@ function resetEntrance()
   entrance=-1
 end
 
-function report()
+function report(_,_,wildcards)
 
   --[[
   well i wrote this before wandering yeti was tellable. this bit can go now. *pout
@@ -408,6 +416,7 @@ function report()
   colorHighlight("You can run again at ".. os.date("%x %X",nextRunTime), foreColor, backColor)
   ]]
 
+  Execute(wildcards[1] .. " " .. last_run)
 
 end
 

@@ -15,7 +15,7 @@
    save_state="y"
    date_written="2024-01-27 14:24:24"
    requires="5.07"
-   version="1.7"
+   version="1.8"
    >
 <description trim="y">
 <![CDATA[
@@ -46,7 +46,7 @@
   <trigger name="wcc_wyrm_move" enabled="n" group="WCC" keep_evaluating="y" match="^A burrowing ice wyrm rockets past you, cleaving through the ground like a shark\.$" regexp="y" script="notify" sequence="100"></trigger>
   <trigger name="wcc_breath_melt" enabled="n" group="WCC" keep_evaluating="y" match="^The thin cloud of ice shards disperses into the air, as if it never even existed\.$" regexp="y" script="notify" sequence="100"></trigger>
   <trigger name="wcc_breath_boom" enabled="n" group="WCC" keep_evaluating="y" match="^you has disappeared, like the last vestiges of mist in the morning\.$" regexp="y" script="notify" sequence="100"></trigger>
-  <trigger name="wcc_breath_damaged" enabled="n" group="WCC" keep_evaluating="y" match="^whirling vortex of ice shards\. \[\-1 Durability\]$" regexp="y" script="notify" sequence="100"></trigger>
+  <trigger name="wcc_breath_damaged" enabled="n" group="WCC" keep_evaluating="y" match="^(?:whirling vortex of ice shards\. \[\-1 Durability\])|(?:the microscopic shards of ice\. \[-1 Durability\])$" regexp="y" script="notify" sequence="100"></trigger>
   <trigger name="wcc_find" regexp="y" group="WCC_path" match="^(\(.*\))*\s+Blending in perfectly with the snow is a wandering yeti\.$" enabled="y" sequence="100" script="setEntrance"></trigger>
   <trigger name="wcc_u_ded" regexp="y" match="^You die\.$" enabled="n" sequence="100" script="notify"></trigger>
   <trigger name="wcc_path_done" regexp="y" group="WCC_path" match="^\{WCCPATHDONE\}$" enabled="y" sequence="100" omit_from_output="y"></trigger>
@@ -316,11 +316,11 @@ function endRun(dead, rm_hour, rm_min, rm_sec)
   runSecs = runTimer-(runMins*60)
   statusSwitch(false)
 
-  if run_fail then wcc_run_fail = "@RFAIL" else wcc_run_fail = "@GWIN" end
+  if run_fail then wcc_run_fail = "@R[FAIL]" else wcc_run_fail = "@G[WIN]" end
   --report run stats
   colorsToAnsiNote(wccTag .. " @WRun took @y" .. runMins .. " @Wminutes and @y" .. runSecs .. " @Wseconds, starting at @y" .. os.date("%x %X",timerStart) .. " @Wand ending at @y" .. os.date("%x %X",lastRun) .. "@w")
   colorsToAnsiNote(wccTag .. " @WYou killed @Y"..  wcc_data["egg_dead"].." @WEggs @B|@Y "..wcc_data["whelp_dead"].." @WWhelps @B|@Y "..wcc_data["stalac_dead"].." @WStalac@w")
-  last_run = wccTag .. " @yLast run ["..wcc_run_fail .. "]: @Y"..  wcc_data["egg_dead"].." @WEggs @B|@Y "..wcc_data["whelp_dead"].." @WWhelps @B|@Y "..wcc_data["stalac_dead"].." @WStalac, in @y" .. runMins .. " @Wminutes and @y" .. runSecs .. " @Wseconds.@w"
+  last_run = wccTag .. " @yLast run "..wcc_run_fail .. "@y: @Y"..  wcc_data["egg_dead"].." @WEggs @B|@Y "..wcc_data["whelp_dead"].." @WWhelps @B|@Y "..wcc_data["stalac_dead"].." @WStalac, in @y" .. runMins .. " @Wminutes and @y" .. runSecs .. " @Wseconds.@w"
   SetVariable("wcc_last_run", last_run)
   EnableTriggerGroup("WCC",false)
   EnableTrigger("wcc_u_ded", false)

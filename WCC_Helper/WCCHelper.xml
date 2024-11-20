@@ -15,7 +15,7 @@
    save_state="y"
    date_written="2024-01-27 14:24:24"
    requires="5.07"
-   version="1.9"
+   version="2.0"
    >
 <description trim="y">
 <![CDATA[
@@ -46,7 +46,7 @@
   <trigger name="wcc_wyrm_move" enabled="n" group="WCC" keep_evaluating="y" match="^A burrowing ice wyrm rockets past you, cleaving through the ground like a shark\.$" regexp="y" script="notify" sequence="100"></trigger>
   <trigger name="wcc_breath_melt" enabled="n" group="WCC" keep_evaluating="y" match="^The thin cloud of ice shards disperses into the air, as if it never even existed\.$" regexp="y" script="notify" sequence="100"></trigger>
   <trigger name="wcc_breath_boom" enabled="n" group="WCC" keep_evaluating="y" match="^you has disappeared, like the last vestiges of mist in the morning\.$" regexp="y" script="notify" sequence="100"></trigger>
-  <trigger name="wcc_breath_damaged" enabled="n" group="WCC" keep_evaluating="y" match="^(?:whirling vortex of ice shards\. \[\-1 Durability\])|(?:the microscopic shards of ice\. \[-1 Durability\])$" regexp="y" script="notify" sequence="100"></trigger>
+  <trigger name="wcc_breath_damaged" enabled="n" group="WCC" keep_evaluating="y" omit_from_output="y" match="^(?:whirling vortex of ice shards\. \[\-1 Durability\])|(?:the microscopic shards of ice\. \[-1 Durability\])$" regexp="y" script="notify" sequence="100"></trigger>
   <trigger name="wcc_find" regexp="y" group="WCC_path" match="^(\(.*\))*\s+Blending in perfectly with the snow is a wandering yeti\.$" enabled="y" sequence="100" script="setEntrance"></trigger>
   <trigger name="wcc_u_ded" regexp="y" match="^You die\.$" enabled="n" sequence="100" script="notify"></trigger>
   <trigger name="wcc_path_done" regexp="y" group="WCC_path" match="^\{WCCPATHDONE\}$" enabled="y" sequence="100" omit_from_output="y"></trigger>
@@ -71,8 +71,9 @@
   <alias match="wcc update install" enabled="y" script="update_install_alias" sequence="99"></alias>
   <alias match="wb" enabled="n" group="WCC" script="manualBreath"></alias>
   <alias match="fl" enabled="n" group="WCC" send_to="10"><send>flee;flee;flee</send></alias>
-  <alias match="wcc start" enabled="y" send_to="10"><send>touch rune;n;n;l anx;s;w;w</send></alias>
+  <alias match="wcc start" enabled="y" send_to="10"><send>touch rune;run 2n;l anxia;run 2s</send></alias>
   <alias match="wcc gtfo" enabled="n" group="WCC" script="runAway" sequence="99"></alias>
+  <alias match="^wcc config(?:(?:\s(?<option>verbose|autobreath|automap))(?:\s(?<amtimer>\d+))?)?$" enabled="y" regexp="y" script="config" sequence="99"></alias>  
 </aliases>
 
 <timers>
@@ -125,11 +126,47 @@ function initVars()
   }
   exit = 0
   last_run = GetVariable("wcc_last_run") or wccTag .. " No data yet, go murder some stalactites!"
+  verbose = toBoolean(GetVariable("wcc_verbose"))
+  autobreath = toBoolean(GetVariable("wcc_autobreath"))
+  automap = toBoolean(GetVariable("wcc_automap"))
+  automap_timer = tonumber(GetVariable("wcc_automap_timer")) or 3
+end
+
+function config(name,line,wildcards)
+  if(isEmpty(wildcards.option)) then
+    colorsToAnsiNote("     @M>>>@Y WCC Helper Config @M<<<@w")
+    Note()
+    colorsToAnsiNote("@w        verbose: @Y" .. tostring(verbose))
+    colorsToAnsiNote("@w     autobreath: @Y" .. tostring(autobreath))
+    colorsToAnsiNote("@w        automap: @Y" .. tostring(automap))
+    colorsToAnsiNote("@w  automap timer: @Y" .. tostring(automap_timer))
+  elseif wildcards.option == "verbose" then
+    verbose = not verbose
+    saveVar("wcc_verbose",tostring(verbose))
+    colorsToAnsiNote(wccTag .. " @Mverbose@w set to: @Y" .. tostring(verbose) .. "@w.")
+  elseif wildcards.option == "autobreath" then
+    autobreath = not autobreath
+    saveVar("wcc_autobreath",tostring(autobreath))
+    colorsToAnsiNote(wccTag .. " @Mautobreath@w set to: @Y".. tostring(autobreath) .. "@w.")
+  elseif wildcards.option == "automap" then
+    if isEmpty(wildcards.amtimer) then
+      automap = not automap
+      saveVar("wcc_automap",tostring(automap))
+      colorsToAnsiNote(wccTag .. " @Mautomap@w set to: @Y".. tostring(automap) .. "@w.")
+    else
+      automap_timer = wildcards.amtimer
+      saveVar("wcc_automap_timer",tostring(automap_timer))
+      SetTimerOption("wcc_map_timer","second",tostring(automap_timer))
+      colorsToAnsiNote(wccTag .. " @Mautomap timer@w set to @Y" .. automap_timer .. "@w.")
+    end
+  else
+    Note("something broke")
+    tprint(wildcards)
+  end
 end
 
 function statusToggle()
   local isEnabled = GetTimerInfo("wcc_status_timer",6)
-  --isEnabled = not isEnabled
   SetTimerOption("wcc_status_timer","enabled",not isEnabled)
   if not isEnabled then
     ResetTimer("wcc_status_timer")
@@ -151,22 +188,24 @@ function sendStatus()
   shardTime = os.difftime(wcc_data["next_shard"],os.time())
   nextShards = tostring(shardTime) .. " to " .. tostring(shardTime + shardOffset) .. " sec"
   
-  if wcc_data["breath_timer"] == 0 then
+  if wcc_data["breath_timer"] == 0 then --todo: add check for "and no whelps are dead yet" maybe
     breathString = "@RKill a whelp."
   else
     breathString = "@Y" .. tostring(os.difftime(wcc_data["breath_timer"],os.time())).." @Wsec"
   end
 
   Note()
-  --colorsToAnsiNote("@M(@YWCC@M)@W [Stalactite in @Y" .. nextStal .. "@W]")
-  colorsToAnsiNote(wccTag .. " @WShards in @Y".. nextShards .. " @B|@W Stalactite in @Y" .. nextStal .. "@w")
-  colorsToAnsiNote(wccTag .. " @WBreath: " .. breathString .. " @B|@Y " .. wcc_data["breath_durability"] .. "@W charges @B|@W Egg @Y"..wcc_data["egg_dead"].."@B/@y8@W @B|@W Whelp @Y"..wcc_data["whelp_dead"].."@B/@y8@W @B|@W Stalac @Y"..wcc_data["stalac_dead"].."@W [@y" ..  os.date("%M:%S",os.time()-timerStart) .. "@W]@w")
+  if(verbose) then
+    colorsToAnsiNote(wccTag .. " @WShards in @Y".. nextShards .. " @B|@W Stalactite in @Y" .. nextStal .. "@w")
+    colorsToAnsiNote(wccTag .. " @WBreath: " .. breathString .. " @B|@Y " .. wcc_data["breath_durability"] .. "@W charges @B|@W Egg @Y"..wcc_data["egg_dead"].."@B/@y8@W @B|@W Whelp @Y"..wcc_data["whelp_dead"].."@B/@y8@W @B|@W Stalac @Y"..wcc_data["stalac_dead"].."@W [@y" ..  os.date("%M:%S",os.time()-timerStart) .. "@W]@w")
+  else
+    colorsToAnsiNote(wccTag .. " @B[@WShard:@Y" .. nextShards .. "@C|@WStal:@Y" .. nextStal .. "@B]@W Breath@B[@Y" .. wcc_data["breath_durability"] .. "@C|@Y" .. breathString .. "@B]@W Kills@B[@WE:@Y" .. wcc_data["egg_dead"] .. "@C|@WW:@Y" .. wcc_data["whelp_dead"] .. "@C|@WS:@Y" .. wcc_data["stalac_dead"] .. "@B]@W [@y" ..  os.date("%M:%S",os.time()-timerStart) .. "@W]@w")
+  end
   Note()
   SendNoEcho()
 end
 
---in case we want to do more than just colorHighlight. more processor cycles ftw.
-function notify(name,line,wildcards)
+function notify(name,line,wildcards,styles)
   Note()
   if name=="wcc_run_start" then
     startRun()
@@ -181,13 +220,14 @@ function notify(name,line,wildcards)
   elseif name=="wcc_stalactite_warn" then
     stalacWarning()
   elseif name=="wcc_stalac_yoink" then
-    colorsToAnsiNote(wccTag .. "@WStalactite moved you. Check your location. @w[@y" .. os.date("%M:%S",(os.time()-timerStart)) .. "@w]")
-    
-    --[[ this is commented out for good reason. it's not needed. don't uncomment, future ans. you don't want this part.
+    if(verbose) then
+      colorsToAnsiNote(wccTag .. "@WStalactite moved you. Check your location. @w[@y" .. os.date("%M:%S",(os.time()-timerStart)) .. "@w]")
+    end
+
+    --[[ this next bit is commented out for good reason. it's not needed. don't uncomment, future ans. you don't want this part.
           only reason it's commented and not deleted is because yOU ALREADY RECREATED IT ONCE. STOP IT. you are
           literally doing the thing you want in the next option. knock it the hell off.
           you just considered uncommenting this despite the warning, so now it's longer.
-
   elseif name=="wcc_stalactite_fell" then
     --notify stalactite landed
     colorsToAnsiNote(wccTag .. " @WStalactite landed. @w[@y" .. os.date("%M:%S",(os.time()-timerStart)) .. "@w]")
@@ -214,13 +254,18 @@ function notify(name,line,wildcards)
     SendNoEcho("map")
     colorsToAnsiNote(wccTag .. " @WWyrm moved, check map. @w[@y" .. os.date("%M:%S",(os.time()-timerStart)) .. "@w]")
   elseif name=="wcc_breath_melt" then
-    --SendNoEcho("wear breath")
     breathMelt()
   elseif name=="wcc_breath_boom" then
     SendNoEcho("wear breath")
     breathID()
   elseif name=="wcc_breath_damaged" then
     wcc_data["breath_durability"] = wcc_data["breath_durability"] - 1
+    --tprint(styles)
+    --todo: StylesToColours() this
+    DeleteLines(1)
+    breathSub = string.gsub(StylesToColours(styles), "-1 Durability", wcc_data["breath_durability"] .. "/10 Durability")
+--        (string.gsub (v.text, "-1 Durability", wcc_data["breath_durability"] .. "/10 Durability")).."\""
+    colorsToAnsiNote(breathSub)
   elseif name=="wcc_run_stop" then
     endRun(false,wildcards.remain_hour,wildcards.remain_min,wildcards.remain_sec)
   elseif name == "wcc_u_ded" then
@@ -255,20 +300,15 @@ function deadWhelp()
   end
   if(wcc_data["whelp_dead"] == 3) then
     wcc_data["next_wyrm"] = os.time() + minWyrm
-    Note("enabling map timer")
-    EnableTimer("wcc_map_timer", true)
+    if(automap) then
+      EnableTimer("wcc_map_timer", true)
+    end
   end
   wcc_data["whelp_dead"] = wcc_data["whelp_dead"] + 1
   Execute("give 2.breath self")
 end
 
 function deadEgg()
-  --[[ does first dead egg do anything? dont think it does ....
-  if (wcc_data["egg_dead"] == 0) then
-    ResetTimer("wcc_status_timer")
-  end
-  ]]
-
   colorsToAnsiNote(wccTag .. " @WDead egg. @w[@y" .. os.date("%M:%S",(os.time()-timerStart)) .. "@w]")
   wcc_data["egg_dead"] = wcc_data["egg_dead"]+1
 end
@@ -351,13 +391,10 @@ end
 function set_breath(name, line, args)
   if name=="breath_worth" then
     wcc_data["breath_durability"] = args.worth
---    Note(wcc_data["breath_durability"])
   elseif name=="breath_time" then
     local breathtime = (tonumber(args.hour) * 60 * 60) + (tonumber(args.minute) * 60) + tonumber(args.second)
     wcc_data["breath_timer"] = os.time() + breathtime
---    Note(wcc_data["breath_timer"])
   end
-  --Note("durability: " .. wcc_data["breath_durability"] .. " timer: " .. wcc_data["breath_timer"])
 end
 
 function breathID()
@@ -378,10 +415,12 @@ function disableBreathID()
 end
 
 function breathMelt()
-  colorsToAnsiNote(wccTag .. " @WBreath melted. @w[@y" .. os.date("%M:%S",(os.time()-timerStart)) .. "@w]")
-  if os.difftime(tonumber(wcc_data["breath_timer"]),os.time())<= 0 then
+  if (os.difftime(tonumber(wcc_data["breath_timer"]),os.time())<= 0) and (autobreath) then
+    colorsToAnsiNote(wccTag .. " @WBreath melted, auto-equipping. @w[@y" .. os.date("%M:%S",(os.time()-timerStart)) .. "@w]")
     Execute("wear breath")
     breathID()
+  else
+    colorsToAnsiNote(wccTag .. " @WBreath melted. @w[@y" .. os.date("%M:%S",(os.time()-timerStart)) .. "@w]")
   end
 end
 
@@ -392,7 +431,6 @@ function manualBreath()
 end
 
 function findWCC()
-  --Note(tostring(entrance))
   if entrance==-1 then
     EnableTrigger("wcc_find",true)
     Note()
@@ -414,24 +452,19 @@ function findWCC()
   end
 end
 
---[[ debug function, dont need i think...
-function reportWCCPath()
-  Note(tostring(entrance))
-end
-]]--
-
 function setEntrance()
-  --EnableTrigger("wcc_find",false)
   entrance = tonumber(gmcp("room.info.num"))
 end
 
 function resetEntrance()
-  --EnableTrigger("wcc_find",true)
   entrance=-1
 end
 
-function report(_,_,wildcards)
+function isEmpty(testme)
+  return testme == nil or testme==""
+end
 
+function report(_,_,wildcards)
   --[[
   well i wrote this before wandering yeti was tellable. this bit can go now. *pout
   colorsToAnsiNote(wccTag .. " @WYou can run again at @w[@y" .. os.date("%x %X",nextRunTime) .. "@w]")
@@ -442,12 +475,19 @@ function report(_,_,wildcards)
 
 end
 
---i might not need this, but i also might.
+function toBoolean(input)
+  return string.lower(input) == "true"
+end
+
+function saveVar(name,value)
+  SetVariable(name,value)
+  SaveState()
+end
+
 function colorsToAnsiNote(data)
   return AnsiNote(ColoursToANSI(data))
 end
 
---my brain parses this command better in this order. sue me.
 function colorHighlight(inText, textColor, bgColor)
     ColourNote (textColor, bgColor, inText)
 end
@@ -455,26 +495,38 @@ end
 
 function OnHelp ()
   Note()
-  ColourNote("white","black","            >>>","#05b7f2","black"," WCC HELPER ","white","black","<<<")
+  colorsToAnsiNote("            @M>>>@Y WCC Helper @M<<<@w")
   Note()
-  ColourNote("#a8acad","black","Collection of triggers and a couple of aliases to send notifications in White Claw Caverns")
-  ColourNote("#a8acad","black","Mostly self-running. Expected behavior is mostly notifications.")
-  ColourNote("#a8acad","black","Sends map regularly on some events (wyrm-related), wears breath semi-intelligently.")
+  colorsToAnsiNote("@wA helper plugin for White Claw Cavern.")
+  colorsToAnsiNote("@wFeatures include lots of status notifications,")
+  colorsToAnsiNote("@wbreath management, warning of wyrms, path to")
+  colorsToAnsiNote("@wthe exit, and much, much more.")
   Note()
-  ColourNote("white","black","Commands:")
-  ColourNote("#a8acad","black","wcc help","white","black"," - this")
-  ColourNote("#a8acad","black","wcc find","white","black"," - Looks for the yeti. Once yeti is found, sending wcc find again will run you to the yeti's room. You still have to give flaming.")
-  ColourNote("#a8acad","black","wcc report <channel>","white","black"," - report stats to <channel>. Might not work, it's been a while. Works better than it once did...")
-  ColourNote("#a8acad","black","wb","white","black"," - manually wear breath and do the id magic stuff")
-  ColourNote("#a8acad","black","fl","white","black"," - sends 3 flee commands. because holy crap failed flees suck.")
-  ColourNote("#a8acad","black","wcc gtfo","white","black"," - walks to fissure and leaves the area. Doesn't check for wyrm. use at your own risk.")
-  ColourNote("#a8acad","black","wcc start","white","black"," - touches rune, looks at anyxia, and then moves you out of her freezy rooms.")
+  colorsToAnsiNote("@YCommands:@w")
+  colorsToAnsiNote("@wwcc @Mhelp@w:   @WThis helpfile")
+  colorsToAnsiNote("@wwcc @Mfind@w:   @WWalks through the Wandering Yeti's rooms. Once found, send @Mwcc find @Wagain to be taken to his room.")
+  colorsToAnsiNote("@wwcc @Mreport @Y[channel]@w:")
+  colorsToAnsiNote("@w            @WReport last run statistics to @M[channel]@W.")
+  colorsToAnsiNote("@wwb:         @WAlias to \"manually\" wear the breath, while still doing the ID magic for tracking durability and timer.")
+  colorsToAnsiNote("@wfl:         @WFor when a single flee command is not enough. Alias to send 3 flee commands.")
+  colorsToAnsiNote("@wwcc @Mgtfo@w:   @WWalks you to fissure and exits the area. Does not have a built in check for wyrm, use at your own risk.")
+  colorsToAnsiNote("@wwcc @Mstart@w:  @WAlias to touch rune, run 2n, l anxia, run 2s.")
   Note()
-  ColourNote("white","black","Updating:")
-  ColourNote("#a8acad","black","wcc update check","white","black"," - Check for updates.")
-  ColourNote("#a8acad","black","wcc update install","white","black"," - Install updates if any.")
+  colorsToAnsiNote("@YConfiguration:@w")
+  colorsToAnsiNote("@wwcc config: @WDisplay configuration settings.@w")
+  colorsToAnsiNote("@wwcc config @Mverbose@w:")
+  colorsToAnsiNote("@w            @WToggle verbose mode. When set to @Mfalse@W, will show shortened output.@w")
+  colorsToAnsiNote("@wwcc config @Mautobreath@w:")
+  colorsToAnsiNote("@w            @WToggle auto-wearing of breath when one melts. If toggled off, remember to use the @Mwb@W alias to rewear breath.")
+  colorsToAnsiNote("@wwcc config @Mautomap@w:")
+  colorsToAnsiNote("@w            @WToggle automatic sending of @Mmap@W command after 4th whelp.")
+  colorsToAnsiNote("@wwcc config automap @M[seconds]@w:")
+  colorsToAnsiNote("@w            @WSet frequency (in seconds) of sending @Mmap@W command after 4th whelp. Default is 3.")
   Note()
-  --ColourNote("#a8acad","black","any other aliases in this plugin","white","black"," - Used for testing. ")
+  colorsToAnsiNote("@YUpdating:@w")
+  colorsToAnsiNote("@wwcc @Mupdate check@W: @WChecks for updates, but does not install them.")
+  colorsToAnsiNote("@wwcc @Mupdate install@w: @WChecks for updates, and installs if found.")
+  Note()
 
 end
 

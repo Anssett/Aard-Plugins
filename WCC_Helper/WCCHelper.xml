@@ -15,7 +15,7 @@
    save_state="y"
    date_written="2024-01-27 14:24:24"
    requires="5.07"
-   version="2.0"
+   version="2.01"
    >
 <description trim="y">
 <![CDATA[
@@ -476,6 +476,7 @@ function report(_,_,wildcards)
 end
 
 function toBoolean(input)
+  if(input == nil) then return false end
   return string.lower(input) == "true"
 end
 

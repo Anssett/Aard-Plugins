@@ -32,9 +32,11 @@
 </triggers>
 
 <aliases>
-  <alias match="^gqcheck$" enabled="y" regexp="y" ignore_case="y" script="checkGQs" sequence="99"></alias>  
+  <alias match="^gqcheck$" enabled="y" regexp="y" ignore_case="y" script="checkGQs" sequence="99"></alias>
   <alias match="^gqcheck config(?:\s?(?<opt>\w+?))?$" enabled="y" regexp="y" ignore_case="y" script="gqcheckMain" sequence="99"></alias>
   <alias match="gqjoin" enabled="y" regexp="n" ignore_case="y" script="joinGQs"></alias>
+  <alias match="gqcheck update check" enabled="y" script="update_check_alias" sequence="99"/>
+  <alias match="gqcheck update install" enabled="y" script="update_install_alias" sequence="99"/>
 </aliases>
 
 <script>
@@ -47,6 +49,10 @@ require "aardwolf_colors"
 local myWins = tonumber(0)
 local gqString = ""
 local debug = true
+local priColor = "@Y"
+local secColor = "@M"
+local terColor = "@w"
+local tagPrefix = secColor .. "[" .. priColor .. "GQChecker" .. secColor .. "]" .. terColor .. " "
 
 function gqcheckMain(name,line,wildcards)
   local opt = wildcards.opt
@@ -66,31 +72,31 @@ function gqcheckMain(name,line,wildcards)
 end
 
 function gqReportConfig()
-  Note("eventually this will show you config settings. just not yet.")
+  colorsToAnsiNote(tagPrefix .. terColor .. "eventually this will show you config settings. just not yet.")
 end
 
 function toggleDCTrigger()
-  local onoffString = "Disconnect check trigger is "
+  local onoffString = tagPrefix .. terColor .. "Disconnect check trigger is " .. secColor
   EnableTrigger("dcMatch",not GetTriggerInfo("dcMatch",8))
   if GetTriggerInfo("dcMatch",8) then onoffString = onoffString .. "on" else onoffString = onoffString .. "off" end
-  onoffString = onoffString .. "."
-  Note(onoffString)
+  onoffString = onoffString .. priColor .. "." .. terColor
+  colorsToAnsiNote(onoffString)
 end
 
 function toggleAFKTrigger()
-  local onoffString = "AFK check trigger is "
+  local onoffString = tagPrefix .. terColor .. "AFK check trigger is " ..secColor
   EnableTriggerGroup("afkChecks",not GetTriggerInfo("afkMatch",8))
   if GetTriggerInfo("afkMatch",8) then onoffString = onoffString .. "on" else onoffString = onoffString .. "off" end
-  onoffString = onoffString .. "."
-  Note(onoffString)
+  onoffString = onoffString .. priColor .. "." .. terColor
+  colorsToAnsiNote(onoffString)
 end
 
 function toggleLevelTrigger()
-  local onoffString = "Level check trigger is "
+  local onoffString = tagPrefix .. terColor .. "Level check trigger is " .. secColor
   EnableTrigger("levelMatch",not GetTriggerInfo("levelMatch",8))
   if GetTriggerInfo("levelMatch",8) then onoffString = onoffString .. "on" else onoffString = onoffString .. "off" end
-  onoffString = onoffString .. "."
-  Note(onoffString)
+  onoffString = onoffString .. priColor .. "." .. terColor
+  colorsToAnsiNote(onoffString)
 end
 
 
@@ -124,6 +130,12 @@ function processGQList(name,line,wildcards)
   else
   if debug then Note("I'm out of level range!") end
   end
+
+  if gqString ~="" then
+    SetClipboard(gqstring)
+    colorsToAnsiNote(tagPrefix .. terColor .. gqString .. priColor .. " copied to the clipboard." .. terColor)
+    gqString = ""
+  end
 end
 
 function processCaptureMyGQ(lines)
@@ -142,7 +154,7 @@ function processCaptureMyGQ(lines)
 end
 
 function captureTimeout()
-  Note("Capture timed out")
+  colorsToAnsiNote(tagPrefix .. terColor .. "Capture timed out")
   EnableTriggerGroup("gq_checker",false)
 end
 
@@ -188,6 +200,14 @@ function initGQs()
   gqRange = ""
 
 end
+
+--general utility things
+
+function colorsToAnsiNote(data)
+  return AnsiNote(ColoursToANSI(data))
+end
+
+
 
  ----------------------- Plugin Update Code -----------------------
  -- Code taken from Durel's dinv plugin, originally via Crowley

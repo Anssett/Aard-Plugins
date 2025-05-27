@@ -15,7 +15,7 @@
    save_state="y"
    date_written="2025-05-20 13:14:32"
    requires="5.07"
-   version="1.0"
+   version="1.1"
    >
 
 </plugin>
@@ -25,14 +25,15 @@
   <trigger name="gqMatch" enabled="n" group="gq_checker" keep_evaluating="y" match="^\s*(?<gq_id>\d+) (?<gq_range>(Less than 25 wins|25 to 199 wins|200 Wins or more))\s+(?<gq_min_lev>\d+)\s+(?<gq_max_lev>\d+) (?<gq_status>(Active|Preparing|Extended))\s+(?<gq_timer>\d+)\s+(?<gq_players>\d+)\s*(?:\*\*\*)?$" regexp="y" script="processGQList" sequence="100"></trigger>
 <!--  <trigger name="selfGQWins" enabled="n" group="gq_checker" keep_evaluating="y" match="^Quests Complete : \[\s*\d+\]\s+Quests Failed: \[\s*\d+\]\s+Gquests Won: \[\s*(?<gq_won>\d+)\]$" regexp="y" script="setGQWins" sequence="100"></trigger> -->
   <trigger name="gqMatchEnd" enabled="y" group="gq_checker" keep_evaluating="y" match="{/gqcapture}" regexp="n" script="finishGQCapture" omit_from_output="y" sequence="100"></trigger>
-  <trigger name="levelMatch" enabled="n" keep_evaluating="y" match="^You raise a level! You are now level (?<level>\d+)\.$" regexp="y" script="checkGQs" sequence="100"></trigger>
+  <trigger name="levelMatch" group="levelChecks" enabled="n" keep_evaluating="y" match="^You raise a level! You are now level (?<level>\d+)\.$" regexp="y" script="checkGQs" sequence="100"></trigger>
   <trigger name="afkMatch" group="afkChecks" enabled="n" keep_evaluating="y" match="^Returning to game\.\.\.\.$" regexp="y" script="checkGQs" sequence="100"></trigger>
   <trigger name="afkMatch2" group="afkChecks" enabled="n" keep_evaluating="y" match="^AFK mode removed\. There are no tells waiting for you\.$" regexp="y" script="checkGQs" sequence="100"></trigger>
-  <trigger name="dcMatch" enabled="n" keep_evaluating="y" match="^\#+ Reconnecting to Game \#+$" regexp="y" script="checkGQs" sequence="100"></trigger>
+  <trigger name="dcMatch" group="dcChecks" enabled="n" keep_evaluating="y" match="^\#+ Reconnecting to Game \#+$" regexp="y" script="checkGQs" sequence="100"></trigger>
 </triggers>
 
 <aliases>
   <alias match="^gqcheck$" enabled="y" regexp="y" ignore_case="y" script="checkGQs" sequence="99"></alias>
+  <alias match="^gqcheck help$" enabled="y" regexp="y" ignore_case="y" script="onHelp" sequence="99"></alias>
   <alias match="^gqcheck config(?:\s?(?<opt>\w+?))?$" enabled="y" regexp="y" ignore_case="y" script="gqcheckMain" sequence="99"></alias>
   <alias match="gqjoin" enabled="y" regexp="n" ignore_case="y" script="joinGQs"></alias>
   <alias match="gqcheck update check" enabled="y" script="update_check_alias" sequence="99"/>
@@ -48,7 +49,7 @@ require "aardwolf_colors"
 
 local myWins = tonumber(0)
 local gqString = ""
-local debug = true
+local debug = false
 local priColor = "@Y"
 local secColor = "@M"
 local terColor = "@w"
@@ -72,12 +73,15 @@ function gqcheckMain(name,line,wildcards)
 end
 
 function gqReportConfig()
-  colorsToAnsiNote(tagPrefix .. terColor .. "eventually this will show you config settings. just not yet.")
+  colorsToAnsiNote(terColor .. "------- " .. secColor .. "[" .. priColor .. "GQ Checker Config" .. secColor .. "]" .. terColor .. " -------")
+  colorsToAnsiNote(priColor .. " Level up GQ Check:   " .. terColor .. tostring(GetTriggerInfo("levelMatch",8)))
+  colorsToAnsiNote(priColor .. " Disconnect GQ Check: " .. terColor .. tostring(GetTriggerInfo("dcMatch",8)))
+  colorsToAnsiNote(priColor .. " AFK GQ Check:        " .. terColor .. tostring(GetTriggerInfo("afkMatch",8)))
 end
 
 function toggleDCTrigger()
   local onoffString = tagPrefix .. terColor .. "Disconnect check trigger is " .. secColor
-  EnableTrigger("dcMatch",not GetTriggerInfo("dcMatch",8))
+  EnableTriggerGroup("dcChecks",not GetTriggerInfo("dcMatch",8))
   if GetTriggerInfo("dcMatch",8) then onoffString = onoffString .. "on" else onoffString = onoffString .. "off" end
   onoffString = onoffString .. priColor .. "." .. terColor
   colorsToAnsiNote(onoffString)
@@ -93,7 +97,7 @@ end
 
 function toggleLevelTrigger()
   local onoffString = tagPrefix .. terColor .. "Level check trigger is " .. secColor
-  EnableTrigger("levelMatch",not GetTriggerInfo("levelMatch",8))
+  EnableTriggerGroup("levelChecks",not GetTriggerInfo("levelMatch",8))
   if GetTriggerInfo("levelMatch",8) then onoffString = onoffString .. "on" else onoffString = onoffString .. "off" end
   onoffString = onoffString .. priColor .. "." .. terColor
   colorsToAnsiNote(onoffString)
@@ -132,7 +136,7 @@ function processGQList(name,line,wildcards)
   end
 
   if gqString ~="" then
-    SetClipboard(gqstring)
+    SetClipboard(gqString)
     colorsToAnsiNote(tagPrefix .. terColor .. gqString .. priColor .. " copied to the clipboard." .. terColor)
     gqString = ""
   end
@@ -203,11 +207,44 @@ end
 
 --general utility things
 
+function onHelp()
+  colorsToAnsiNote(terColor .. "-------------------- " .. secColor .. "[" .. priColor .. "GQ Checker" .. secColor .. "]" .. terColor .. " --------------------")
+  colorsToAnsiNote(priColor .. "gqcheck"..terColor..":        Base command. Can use this by itself to manually check GQs.")
+  colorsToAnsiNote(terColor .. "                Can also call this from your own triggers and timers and such")
+  colorsToAnsiNote(terColor .. "                by sending to Execute.")
+  colorsToAnsiNote(priColor .. "gqcheck config" .. terColor .. ": Displays current configuration settings.")
+  colorsToAnsiNote(priColor .. "gqcheck config" .. secColor .. " (level|afk|dc)" .. terColor .. ": ")
+  colorsToAnsiNote(terColor .. "                Toggle on/off the built-in GQ checks on leveling up, returning")
+  colorsToAnsiNote(terColor .. "                from AFK, and reconnecting after a DC.")
+  Note()
+  colorsToAnsiNote(priColor .. "gqcheck help" .. terColor .. ":   This helpfile.")
+  Note()
+  colorsToAnsiNote(priColor .. "gqcheck update check" .. terColor .. ":")
+  colorsToAnsiNote(terColor .. "                Check for updates.")
+  colorsToAnsiNote(priColor .. "gqcheck update install" .. terColor .. ":")
+  colorsToAnsiNote(terColor .. "                Install any available updates.")
+end
+
 function colorsToAnsiNote(data)
   return AnsiNote(ColoursToANSI(data))
 end
 
+function OnPluginSaveState()
+	SetVariable("GQAfk",tostring(GetTriggerInfo("afkMatch",8)))
+  SetVariable("GQLevel",tostring(GetTriggerInfo("levelMatch",8)))
+  SetVariable("GQDC",tostring(GetTriggerInfo("dcMatch",8)))
+end
 
+function OnPluginInstall(msg, id, name, text)
+  EnableTriggerGroup("dcChecks", toBoolean(GetVariable("GQDC")))
+  EnableTriggerGroup("afkChecks", toBoolean(GetVariable("GQAfk")))
+  EnableTriggerGroup("levelChecks", toBoolean(GetVariable("GQLevel")))
+end
+
+function toBoolean(input)
+  if(input == nil) then return false end
+  return string.lower(input) == "true"
+end
 
  ----------------------- Plugin Update Code -----------------------
  -- Code taken from Durel's dinv plugin, originally via Crowley

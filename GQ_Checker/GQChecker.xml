@@ -34,7 +34,8 @@
 <aliases>
   <alias match="^gqcheck$" enabled="y" regexp="y" ignore_case="y" script="checkGQs" sequence="99"></alias>
   <alias match="^gqcheck help$" enabled="y" regexp="y" ignore_case="y" script="onHelp" sequence="99"></alias>
-  <alias match="^gqcheck config(?:\s?(?<opt>\w+?))?$" enabled="y" regexp="y" ignore_case="y" script="gqcheckMain" sequence="99"></alias>
+  <alias name="configMatch" match="^gqcheck config(?:\s?(?<opt>\w+))?$" enabled="y" regexp="y" ignore_case="y" script="gqcheckMain" sequence="99"></alias>
+  <alias name="channelMatch" match="^gqcheck channel(?:\s?(?<opt>.+))?$" enabled="y" regexp="y" ignore_case="y" script="gqcheckMain" sequence="99"></alias>
   <alias match="gqjoin" enabled="y" regexp="n" ignore_case="y" script="joinGQs"></alias>
   <alias match="gqcheck update check" enabled="y" script="update_check_alias" sequence="99"/>
   <alias match="gqcheck update install" enabled="y" script="update_install_alias" sequence="99"/>
@@ -54,12 +55,13 @@ local priColor = "@Y"
 local secColor = "@M"
 local terColor = "@w"
 local tagPrefix = secColor .. "[" .. priColor .. "GQChecker" .. secColor .. "]" .. terColor .. " "
+local chanPrefix = ""
+local chanOn
 
 function gqcheckMain(name,line,wildcards)
   local opt = wildcards.opt
 
-  if opt=="" then
-    --checkGQs()
+  if name=="configMatch" and opt=="" then
     gqReportConfig()
   elseif opt == "level" then --toggle check on level 
     toggleLevelTrigger()
@@ -67,16 +69,42 @@ function gqcheckMain(name,line,wildcards)
     toggleAFKTrigger()
   elseif opt=="dc" then --toggle check on reconnect
     toggleDCTrigger()
+  elseif name=="channelMatch" then
+    setChannel(opt)
   else
     gqReportConfig()
   end
 end
 
+function setChannel(chanStr)
+  if chanStr == "on" then
+    chanOn = true
+    colorsToAnsiNote(tagPrefix .. priColor .. "Channel broadcast turned " .. secColor .. "on".. priColor .. "." .. terColor)
+  elseif chanStr == "off" then
+    chanOn = false
+    colorsToAnsiNote(tagPrefix .. priColor .. "Channel broadcast turned " .. secColor .. "off".. priColor .. "." .. terColor)
+  elseif chanStr == "" then
+    --do nothing bc you asked for nothing
+  else
+    --you must want to set the command
+    chanPrefix = chanStr
+        colorsToAnsiNote(tagPrefix .. priColor .. "Channel prefix set to " .. secColor .. chanPrefix .. priColor .. "." .. terColor)
+  end
+end
+
 function gqReportConfig()
+  if GetTriggerInfo("dcMatch",8) then dcStatus = "on" else dcStatus = "off" end
+  if GetTriggerInfo("afkMatch",8) then afkStatus = "on" else afkStatus = "off" end
+  if GetTriggerInfo("levelMatch",8) then levelStatus = "on" else levelStatus = "off" end
+  if chanOn then chanStatus = "on" else chanStatus = "off" end
   colorsToAnsiNote(terColor .. "------- " .. secColor .. "[" .. priColor .. "GQ Checker Config" .. secColor .. "]" .. terColor .. " -------")
-  colorsToAnsiNote(priColor .. " Level up GQ Check:   " .. terColor .. tostring(GetTriggerInfo("levelMatch",8)))
-  colorsToAnsiNote(priColor .. " Disconnect GQ Check: " .. terColor .. tostring(GetTriggerInfo("dcMatch",8)))
-  colorsToAnsiNote(priColor .. " AFK GQ Check:        " .. terColor .. tostring(GetTriggerInfo("afkMatch",8)))
+  colorsToAnsiNote(priColor .. " Level up GQ Check:   " .. terColor .. levelStatus)
+  colorsToAnsiNote(priColor .. " Disconnect GQ Check: " .. terColor .. dcStatus)
+  colorsToAnsiNote(priColor .. " AFK GQ Check:        " .. terColor .. afkStatus)
+  colorsToAnsiNote(priColor .. " Channel Broadcast:   " .. terColor .. chanStatus)
+  colorsToAnsiNote(priColor .. " Channel prefix set to ")
+  colorsToAnsiNote(secColor .. "          " .. chanPrefix)
+  Note()
 end
 
 function toggleDCTrigger()
@@ -126,7 +154,8 @@ function processGQList(name,line,wildcards)
   if (myLevel>=minLev) and (myLevel<=maxLev) then
     if debug then Note("I'm in level range!") end
     if(gqWins == gqWinRange) then
-      Note("You can join gq# " .. wildcards.gq_id .. ".")
+      colorsToAnsiNote(tagPrefix .. priColor .. " You can join gq# " .. wildcards.gq_id .. ".")
+      if chanOn then Execute(chanPrefix .. tagPrefix .. priColor .. " You can join gq# " .. wildcards.gq_id .. ".") end
       gqString = gqString .. "gq join " .. wildcards.gq_id .. ";"
     else
       if debug then Note("not in the right wins bracket :(") end
@@ -217,12 +246,20 @@ function onHelp()
   colorsToAnsiNote(terColor .. "                Toggle on/off the built-in GQ checks on leveling up, returning")
   colorsToAnsiNote(terColor .. "                from AFK, and reconnecting after a DC.")
   Note()
+  colorsToAnsiNote(priColor .. "gqcheck channel" .. secColor .. " (on|off)" .. terColor .. ": ")
+  colorsToAnsiNote(terColor .. "                Toggle broadcasting on/off to a specified channel.")
+  colorsToAnsiNote(terColor .. "                Will probably break if you don't configure the channel also.")
+  colorsToAnsiNote(priColor .. "gqcheck channel" .. secColor .. " <command>" .. terColor .. ": ")
+  colorsToAnsiNote(terColor .. "                Sets the channel prefix that you want to output to. For example,")
+  colorsToAnsiNote(terColor .. "                gqcheck channel spouse will send notifications to spouse as well as note.")
+  Note()
   colorsToAnsiNote(priColor .. "gqcheck help" .. terColor .. ":   This helpfile.")
   Note()
   colorsToAnsiNote(priColor .. "gqcheck update check" .. terColor .. ":")
   colorsToAnsiNote(terColor .. "                Check for updates.")
   colorsToAnsiNote(priColor .. "gqcheck update install" .. terColor .. ":")
   colorsToAnsiNote(terColor .. "                Install any available updates.")
+  Note()
 end
 
 function colorsToAnsiNote(data)
@@ -233,12 +270,16 @@ function OnPluginSaveState()
 	SetVariable("GQAfk",tostring(GetTriggerInfo("afkMatch",8)))
   SetVariable("GQLevel",tostring(GetTriggerInfo("levelMatch",8)))
   SetVariable("GQDC",tostring(GetTriggerInfo("dcMatch",8)))
+  SetVariable("GQChanOn",tostring(chanOn))
+  SetVariable("GQChanPrefix", chanPrefix)
 end
 
 function OnPluginInstall(msg, id, name, text)
   EnableTriggerGroup("dcChecks", toBoolean(GetVariable("GQDC")))
   EnableTriggerGroup("afkChecks", toBoolean(GetVariable("GQAfk")))
   EnableTriggerGroup("levelChecks", toBoolean(GetVariable("GQLevel")))
+  chanOn = toBoolean(GetVariable("GQChanOn")) or false
+  chanPrefix = GetVariable("GQChanPrefix") or ""
 end
 
 function toBoolean(input)

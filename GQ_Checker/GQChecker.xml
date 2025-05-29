@@ -155,7 +155,7 @@ function processGQList(name,line,wildcards)
     if debug then Note("I'm in level range!") end
     if(gqWins == gqWinRange) then
       colorsToAnsiNote(tagPrefix .. priColor .. " You can join gq# " .. wildcards.gq_id .. ".")
-      if chanOn then Execute(chanPrefix .. tagPrefix .. priColor .. " You can join gq# " .. wildcards.gq_id .. ".") end
+      if chanOn then Execute(chanPrefix .. " " .. tagPrefix .. priColor .. " You can join gq# " .. wildcards.gq_id .. ".") end
       gqString = gqString .. "gq join " .. wildcards.gq_id .. ";"
     else
       if debug then Note("not in the right wins bracket :(") end
